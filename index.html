@@ -2070,8 +2070,8 @@ async function formulaRun(cfg, today, slateGames) {
         away_era: ak.era, home_era: hk.era,
         away_ops: ak.team_ops || ak.ops, home_ops: hk.team_ops || hk.ops,
         away_rpg: ak.runs_pg, home_rpg: hk.runs_pg,
-        away_bullpen: ak.bullpen_era, home_bullpen: hk.bullpen_era,
-        away_babip: ak.babip, home_babip: hk.babip,
+        away_k9: ak.k9, home_k9: hk.k9,
+        away_whip: ak.whip, home_whip: hk.whip,
         away_pyth: ak.pyth_win_pct, home_pyth: hk.pyth_win_pct,
         away_fip: ak.fip, home_fip: hk.fip,
         away_luck: ak.luck_delta != null ? +(ak.luck_delta * 100).toFixed(1) : null,
@@ -2242,8 +2242,8 @@ function renderGames(games, picks, cfg) {
       statRow('Starter FIP', fmtEra(st.away_fip), fmtEra(st.home_fip), betterSide(st.away_fip, st.home_fip, true)) +
       statRow('Team OPS', fmtOps(st.away_ops), fmtOps(st.home_ops), betterSide(st.away_ops, st.home_ops)) +
       statRow('Runs/Game', fmtRpg(st.away_rpg), fmtRpg(st.home_rpg), betterSide(st.away_rpg, st.home_rpg)) +
-      statRow('Bullpen ERA', fmtEra(st.away_bullpen), fmtEra(st.home_bullpen), betterSide(st.away_bullpen, st.home_bullpen, true)) +
-      statRow('BABIP', st.away_babip ? parseFloat(st.away_babip).toFixed(3) : '—', st.home_babip ? parseFloat(st.home_babip).toFixed(3) : '—', '') +
+      statRow('Team K/9', st.away_k9 ? parseFloat(st.away_k9).toFixed(1) : '—', st.home_k9 ? parseFloat(st.home_k9).toFixed(1) : '—', betterSide(st.away_k9, st.home_k9)) +
+      statRow('Team WHIP', st.away_whip ? parseFloat(st.away_whip).toFixed(2) : '—', st.home_whip ? parseFloat(st.home_whip).toFixed(2) : '—', betterSide(st.away_whip, st.home_whip, true)) +
       statRow('Pyth W%', fmtPct(st.away_pyth), fmtPct(st.home_pyth), betterSide(st.away_pyth, st.home_pyth)) +
       '</tbody></table>' +
 
@@ -2336,12 +2336,13 @@ async function loadArchiveDay(dateStr) {
         const hasScore = g.actual_away_score != null && g.actual_home_score != null;
         const scoreStr = hasScore ? g.actual_away_score + ' – ' + g.actual_home_score : '—';
         const marginStr = g.actual_margin != null ? (g.actual_margin > 0 ? '+' : '') + g.actual_margin.toFixed(1) : '—';
-        const atsColor = { W: 'var(--green)', L: 'var(--red)', P: 'var(--text2)' }[g.ats_result] || 'var(--text3)';
+        const atsColor = { W: 'var(--green)', L: 'var(--red)', P: 'var(--text2)', FAV_CVR: 'var(--text3)', DOG_CVR: 'var(--text3)' }[g.ats_result] || 'var(--text3)';
+        const atsLabel = { W: 'W', L: 'L', P: 'PUSH', FAV_CVR: 'fav cvr', DOG_CVR: 'dog cvr' }[g.ats_result] || '—';
         return '<tr><td style="font-size:11px">' + g.away.split(' ').slice(-1)[0] + ' @ ' + g.home.split(' ').slice(-1)[0] + '</td>' +
           '<td style="font-family:var(--mono);font-size:11px">' + scoreStr + '</td>' +
           '<td style="font-family:var(--mono);font-size:11px">' + marginStr + '</td>' +
           '<td style="font-family:var(--mono);font-size:10px;color:var(--blue)">' + (g.model_spread || '—') + '</td>' +
-          '<td style="font-family:var(--mono);font-size:11px;font-weight:700;color:' + atsColor + '">' + (g.ats_result || '—') + '</td></tr>';
+          '<td style="font-family:var(--mono);font-size:11px;font-weight:700;color:' + atsColor + '">' + atsLabel + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   } catch (e) { archiveContainer.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' + e.message + '</div>'; }
 }
