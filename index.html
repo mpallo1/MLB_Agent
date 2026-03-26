@@ -907,37 +907,42 @@ function buildMLBStatsCache() {
   for (const [abbr, t] of Object.entries(_espnTeamStats)) {
     const fullName = t.name || ESPN_TO_FULL_NAME[abbr] || abbr;
     const br = _brAdvStats[fullName] || {};
-    const brp = {};
-    const brb = {};
     const gamesPlayed = t.games || 1;
-    const runsPg = t.runs_pg || null;
-    const runsAllowedPg = t.runs_allowed_pg || null;
-    // Pythagorean expected win% (exponent 1.83 for baseball)
+    // BR scraper now provides both batting + pitching in one object
+    // Prefer BR data where available, fall back to ESPN
+    const runsPg = br.runs_pg || t.runs_pg || null;
+    const runsAllowedPg = br.runs_allowed_pg || t.runs_allowed_pg || null;
     const pyth = (runsPg && runsAllowedPg && runsPg + runsAllowedPg > 0)
       ? Math.pow(runsPg, 1.83) / (Math.pow(runsPg, 1.83) + Math.pow(runsAllowedPg, 1.83)) : null;
     const actualWinPct = (t.wins != null && gamesPlayed > 0) ? t.wins / gamesPlayed : null;
     merged[fullName] = {
-      era: t.era || null, ops: t.ops || null,
-      runs_pg: runsPg, runs_allowed_pg: runsAllowedPg,
-      hr: t.hr || null, sb: t.sb || null,
-      batting_avg: t.batting_avg || null,
-      bullpen_era: t.bullpen_era || brp.bullpen_era || null,
-      whip: t.whip || null,
+      era: br.era || t.era || null,
+      ops: br.ops || t.ops || null,
+      runs_pg: runsPg,
+      runs_allowed_pg: runsAllowedPg,
+      hr: br.hr || t.hr || null,
+      sb: t.sb || null,
+      batting_avg: br.avg || t.batting_avg || null,
+      bullpen_era: t.bullpen_era || null,
+      whip: br.whip || t.whip || null,
       games: gamesPlayed, wins: t.wins || null, abbr: abbr,
       win_pct: actualWinPct,
       pyth_win_pct: br.pyth_pct || pyth,
       luck_delta: (actualWinPct != null && (br.pyth_pct || pyth) != null) ? actualWinPct - (br.pyth_pct || pyth) : null,
-      // BR advanced
-      babip: br.babip || brb.babip || null,
+      // BR advanced pitching
+      fip: br.fip || null,
+      k9: br.k9 || null,
+      bb9: br.bb9 || null,
+      hr9: br.hr9 || null,
+      babip: br.babip || null,
+      babip_against: null,
       run_diff: br.run_diff || null,
-      fip: brp.fip || null,
-      k9: brp.k9 || null, bb9: brp.bb9 || null,
-      babip_against: brp.babip_against || null,
-      // BR batting
-      iso: brb.iso || null, slg: brb.slg || null,
-      wrc_plus: brb.wrc_plus || null,
-      hr_pa: brb.hr && brb.pa ? brb.hr / brb.pa : null,
-      team_ops: brb.ops || t.ops || null,
+      // BR batting detail
+      slg: br.slg || t.ops ? (parseFloat(t.ops) * 0.55) : null,
+      iso: null,
+      wrc_plus: null,
+      hr_pa: (br.hr || t.hr) && (br.pa || t.games) ? (br.hr || t.hr) / ((br.pa || t.games * 38) || 1) : null,
+      team_ops: br.ops || t.ops || null,
     };
   }
   _mlbStatsCache = merged;
@@ -1063,10 +1068,21 @@ async function autoFetchESPN() {
       try {
         const sr = await fetch('https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/types/2/athletes/' + s.id + '/statistics/0');
         const sd = await sr.json();
-        const sm = {};
+        let sm = {};
         ((sd.splits && sd.splits.categories) || []).forEach(function (cat) {
           (cat.stats || []).forEach(function (st) { sm[st.name] = st.value; });
         });
+        // If 2026 has no data yet (season just started), try 2025
+        if (sm.earnedRunAverage == null && sm.ERA == null) {
+          try {
+            const sr2 = await fetch('https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2025/types/2/athletes/' + s.id + '/statistics/0');
+            const sd2 = await sr2.json();
+            sm = {};
+            ((sd2.splits && sd2.splits.categories) || []).forEach(function (cat) {
+              (cat.stats || []).forEach(function (st) { sm[st.name] = st.value; });
+            });
+          } catch (e2) {}
+        }
         if (sm.earnedRunAverage != null || sm.ERA != null) {
           _espnPitcherStats[s.name] = {
             era: sm.earnedRunAverage || sm.ERA || null,
@@ -2129,14 +2145,17 @@ function renderGames(games, picks, cfg) {
     const st = g.stats || {};
 
     // Starter info
-    function starterDisplay(starter) {
-      if (!starter || !starter.name) return { name: '—', era: '—', conf: 'unknown', confColor: 'var(--text3)' };
+    function starterDisplay(starter, teamStats) {
+      if (!starter || !starter.name) return { name: '—', era: '—', k9: '—', ip: '—', conf: 'unknown', confColor: 'var(--text3)' };
       const confColor = { confirmed: 'var(--green)', Confirmed: 'var(--green)', expected: 'var(--amber)', projected: 'var(--amber)' }[starter.confidence] || 'var(--text3)';
       const ps = _espnPitcherStats[starter.name];
-      return { name: starter.name, era: ps ? ps.era.toFixed(2) : '?', k9: ps && ps.k9 ? ps.k9.toFixed(1) : '?', ip: ps && ps.ip ? ps.ip.toFixed(0) : '?', conf: starter.confidence || '?', confColor: confColor };
+      var era = ps && ps.era != null ? ps.era.toFixed(2) : (starter.era != null ? parseFloat(starter.era).toFixed(2) : (teamStats && teamStats.era != null ? parseFloat(teamStats.era).toFixed(2) + '*' : '?'));
+      var k9 = ps && ps.k9 ? ps.k9.toFixed(1) : (teamStats && teamStats.k9 ? parseFloat(teamStats.k9).toFixed(1) + '*' : '?');
+      var ip = ps && ps.ip ? ps.ip.toFixed(0) : '?';
+      return { name: starter.name, era: era, k9: k9, ip: ip, conf: starter.confidence || '?', confColor: confColor };
     }
-    const awayS = starterDisplay(g.away_starter);
-    const homeS = starterDisplay(g.home_starter);
+    const awayS = starterDisplay(g.away_starter, g.stats);
+    const homeS = starterDisplay(g.home_starter, g.stats);
 
     const mlBadge = g.ml_lean && g.ml_lean !== 'EVEN'
       ? '<span class="tag ' + (g.ml_lean === 'HOME' ? 'tag-c' : 'tag-h') + '" style="font-size:9px">ML: ' + g.ml_lean + ' ' + (g.ml_confidence || '') + '</span>' : '';
