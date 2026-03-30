@@ -499,7 +499,7 @@
           <input type="checkbox" id="filterOddsOnly" checked onchange="applyESPNFilter()" style="accent-color:var(--green)"> Lines available
         </label>
         <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);color:var(--text3);cursor:pointer">
-          <input type="checkbox" id="filterPreOnly" checked onchange="applyESPNFilter()" style="accent-color:var(--green)"> Upcoming only
+          <input type="checkbox" id="filterPreOnly" onchange="applyESPNFilter()" style="accent-color:var(--green)"> Upcoming only
         </label>
         <span style="font-size:10px;font-family:var(--mono);color:var(--text3)" id="slateStatus"></span>
       </div>
@@ -1922,7 +1922,7 @@ async function runAgent(slateOverride) {
         const filtered = _espnRawGames.filter(function (g) {
           if (document.getElementById('filterTourney')?.checked && !g.isPlayoffs) return false;
           if (document.getElementById('filterOddsOnly')?.checked && !g.spread) return false;
-          if (g.state === 'post') return false;
+          // Don't filter out started/completed games — analyze the full day's slate
           return true;
         });
         if (!filtered.length) {
@@ -2070,8 +2070,8 @@ async function formulaRun(cfg, today, slateGames) {
         away_era: ak.era, home_era: hk.era,
         away_ops: ak.team_ops || ak.ops, home_ops: hk.team_ops || hk.ops,
         away_rpg: ak.runs_pg, home_rpg: hk.runs_pg,
-        away_bullpen: ak.bullpen_era, home_bullpen: hk.bullpen_era,
-        away_babip: ak.babip, home_babip: hk.babip,
+        away_k9: ak.k9, home_k9: hk.k9,
+        away_whip: ak.whip, home_whip: hk.whip,
         away_pyth: ak.pyth_win_pct, home_pyth: hk.pyth_win_pct,
         away_fip: ak.fip, home_fip: hk.fip,
         away_luck: ak.luck_delta != null ? +(ak.luck_delta * 100).toFixed(1) : null,
@@ -2242,8 +2242,8 @@ function renderGames(games, picks, cfg) {
       statRow('Starter FIP', fmtEra(st.away_fip), fmtEra(st.home_fip), betterSide(st.away_fip, st.home_fip, true)) +
       statRow('Team OPS', fmtOps(st.away_ops), fmtOps(st.home_ops), betterSide(st.away_ops, st.home_ops)) +
       statRow('Runs/Game', fmtRpg(st.away_rpg), fmtRpg(st.home_rpg), betterSide(st.away_rpg, st.home_rpg)) +
-      statRow('Bullpen ERA', fmtEra(st.away_bullpen), fmtEra(st.home_bullpen), betterSide(st.away_bullpen, st.home_bullpen, true)) +
-      statRow('BABIP', st.away_babip ? parseFloat(st.away_babip).toFixed(3) : '—', st.home_babip ? parseFloat(st.home_babip).toFixed(3) : '—', '') +
+      statRow('Team K/9', st.away_k9 ? parseFloat(st.away_k9).toFixed(1) : '—', st.home_k9 ? parseFloat(st.home_k9).toFixed(1) : '—', betterSide(st.away_k9, st.home_k9)) +
+      statRow('Team WHIP', st.away_whip ? parseFloat(st.away_whip).toFixed(2) : '—', st.home_whip ? parseFloat(st.home_whip).toFixed(2) : '—', betterSide(st.away_whip, st.home_whip, true)) +
       statRow('Pyth W%', fmtPct(st.away_pyth), fmtPct(st.home_pyth), betterSide(st.away_pyth, st.home_pyth)) +
       '</tbody></table>' +
 
@@ -2336,12 +2336,13 @@ async function loadArchiveDay(dateStr) {
         const hasScore = g.actual_away_score != null && g.actual_home_score != null;
         const scoreStr = hasScore ? g.actual_away_score + ' – ' + g.actual_home_score : '—';
         const marginStr = g.actual_margin != null ? (g.actual_margin > 0 ? '+' : '') + g.actual_margin.toFixed(1) : '—';
-        const atsColor = { W: 'var(--green)', L: 'var(--red)', P: 'var(--text2)' }[g.ats_result] || 'var(--text3)';
+        const atsColor = { W: 'var(--green)', L: 'var(--red)', P: 'var(--text2)', FAV_CVR: 'var(--text3)', DOG_CVR: 'var(--text3)' }[g.ats_result] || 'var(--text3)';
+        const atsLabel = { W: 'W', L: 'L', P: 'PUSH', FAV_CVR: 'fav cvr', DOG_CVR: 'dog cvr' }[g.ats_result] || '—';
         return '<tr><td style="font-size:11px">' + g.away.split(' ').slice(-1)[0] + ' @ ' + g.home.split(' ').slice(-1)[0] + '</td>' +
           '<td style="font-family:var(--mono);font-size:11px">' + scoreStr + '</td>' +
           '<td style="font-family:var(--mono);font-size:11px">' + marginStr + '</td>' +
           '<td style="font-family:var(--mono);font-size:10px;color:var(--blue)">' + (g.model_spread || '—') + '</td>' +
-          '<td style="font-family:var(--mono);font-size:11px;font-weight:700;color:' + atsColor + '">' + (g.ats_result || '—') + '</td></tr>';
+          '<td style="font-family:var(--mono);font-size:11px;font-weight:700;color:' + atsColor + '">' + atsLabel + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   } catch (e) { archiveContainer.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' + e.message + '</div>'; }
 }
@@ -2483,19 +2484,146 @@ async function runPostmortem() {
       '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;text-align:center"><div style="font-family:var(--mono);font-size:18px;font-weight:700">' + allTimeMAE.toFixed(2) + 'r</div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">MAE</div></div>' +
       '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;text-align:center"><div style="font-family:var(--mono);font-size:18px;font-weight:700;color:' + trendColor + '">' + maeTrend + '</div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Trend</div></div>' +
       '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;text-align:center"><div style="font-family:var(--mono);font-size:18px;font-weight:700">' + record + '</div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">ATS</div></div></div>' +
-      '<div class="table-scroll"><table class="data-table"><thead><tr><th>Component</th><th>N</th><th>Avg Value</th><th>MAE</th><th>Pearson r</th><th>Signal</th></tr></thead><tbody>' +
+      '<div class="table-scroll"><table class="data-table"><thead><tr><th>Component</th><th>N</th><th>Avg Value</th><th>MAE</th><th>Pearson r</th><th>Signal</th><th>Suggested Δ</th></tr></thead><tbody>' +
       compKeys.map(function (k) {
         const cs = compStats[k]; if (!cs) return '';
         const signal = cs.pearson > 0.1 ? 'UNDERWEIGHTED' : cs.pearson < -0.1 ? 'OVERWEIGHTED' : 'OK';
         const sigColor = signal === 'OK' ? 'var(--green)' : signal === 'UNDERWEIGHTED' ? 'var(--amber)' : 'var(--red)';
-        return '<tr><td>' + k + '</td><td>' + cs.n + '</td><td>' + cs.avgComp + '</td><td>' + cs.mae + '</td><td>' + cs.pearson + '</td><td style="color:' + sigColor + ';font-weight:700">' + signal + '</td></tr>';
+        // Compute suggested weight nudge: proportional to Pearson, capped at ±3% per cycle
+        var nudge = 0;
+        if (Math.abs(cs.pearson) > 0.1) {
+          nudge = Math.round(cs.pearson * 5); // 0.3 Pearson ≈ +1.5% → rounds to +2%
+          nudge = Math.max(-3, Math.min(3, nudge)); // cap ±3% per cycle
+        }
+        cs.nudge = nudge;
+        var nudgeStr = nudge === 0 ? '—' : (nudge > 0 ? '+' + nudge + '%' : nudge + '%');
+        var nudgeColor = nudge > 0 ? 'var(--green)' : nudge < 0 ? 'var(--red)' : 'var(--text3)';
+        return '<tr><td>' + k + '</td><td>' + cs.n + '</td><td>' + cs.avgComp + '</td><td>' + cs.mae + '</td><td>' + cs.pearson + '</td><td style="color:' + sigColor + ';font-weight:700">' + signal + '</td><td style="color:' + nudgeColor + ';font-weight:600">' + nudgeStr + '</td></tr>';
       }).join('') + '</tbody></table></div>';
+
+    // Store compStats globally so the apply button can use them
+    window.__lastPostmortemStats = compStats;
+    window.__lastPostmortemMAE = allTimeMAE;
+
+    // Build suggested weights preview
+    var cfg = await loadConfig();
+    var currentWeights = {};
+    var suggestedWeights = {};
+    var anyChange = false;
+    for (var wk of Object.keys(DEFAULT_WEIGHTS)) {
+      var cur = (cfg.weights[wk] && cfg.weights[wk].value) || DEFAULT_WEIGHTS[wk].value;
+      currentWeights[wk] = cur;
+      var cs2 = compStats[wk];
+      var nudge2 = cs2 ? (cs2.nudge || 0) : 0;
+      suggestedWeights[wk] = Math.max(0, Math.min(50, cur + nudge2));
+      if (nudge2 !== 0) anyChange = true;
+    }
+    // Normalize suggested weights to sum to 100
+    var sugTotal = Object.values(suggestedWeights).reduce(function(a,b){return a+b;},0);
+    if (sugTotal !== 100 && sugTotal > 0) {
+      // Distribute the difference across active (non-zero) components proportionally
+      var diff = 100 - sugTotal;
+      var activeKeys = Object.keys(suggestedWeights).filter(function(k){return suggestedWeights[k] > 0;});
+      var perKey = Math.round(diff / activeKeys.length);
+      for (var i = 0; i < activeKeys.length; i++) {
+        if (i === activeKeys.length - 1) {
+          suggestedWeights[activeKeys[i]] += (100 - Object.values(suggestedWeights).reduce(function(a,b){return a+b;},0));
+        } else {
+          suggestedWeights[activeKeys[i]] += perKey;
+        }
+        suggestedWeights[activeKeys[i]] = Math.max(0, suggestedWeights[activeKeys[i]]);
+      }
+    }
+
+    if (anyChange) {
+      container.innerHTML += '<div class="divider"></div>' +
+        '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Suggested Weight Adjustments</div>' +
+        '<div style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-bottom:12px;line-height:1.8">Based on Pearson correlation analysis of ' + errors.length + ' games. Nudges capped at ±3% per cycle.</div>' +
+        '<div class="table-scroll"><table class="data-table"><thead><tr><th>Component</th><th>Current</th><th>Suggested</th><th>Change</th></tr></thead><tbody>' +
+        Object.keys(DEFAULT_WEIGHTS).map(function(k) {
+          var cur = currentWeights[k];
+          var sug = suggestedWeights[k];
+          var d = sug - cur;
+          if (d === 0) return '<tr><td>' + k + '</td><td>' + cur + '%</td><td>' + sug + '%</td><td style="color:var(--text3)">—</td></tr>';
+          return '<tr><td>' + k + '</td><td>' + cur + '%</td><td style="font-weight:700;color:var(--text)">' + sug + '%</td><td style="color:' + (d > 0 ? 'var(--green)' : 'var(--red)') + ';font-weight:700">' + (d > 0 ? '+' : '') + d + '%</td></tr>';
+        }).join('') +
+        '</tbody></table></div>' +
+        '<div style="margin-top:12px;display:flex;gap:10px;align-items:center">' +
+        '<button class="btn-sm primary" onclick="applyPostmortemWeights()" style="font-size:12px;padding:9px 18px">⚡ Apply Suggested Weights</button>' +
+        '<span style="font-size:10px;font-family:var(--mono);color:var(--text3)">Updates Model Config and logs the change</span>' +
+        '</div>';
+    }
+
     status.textContent = '✓ ' + errors.length + ' games'; status.style.color = 'var(--green)';
   } catch (e) {
     container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' + e.message + '</div>';
     status.textContent = '✗ Error'; status.style.color = 'var(--red)';
   }
   btn.disabled = false;
+}
+
+// Apply suggested weights from post-mortem analysis
+async function applyPostmortemWeights() {
+  if (!window.__lastPostmortemStats) { alert('Run post-mortem first.'); return; }
+  var compStats = window.__lastPostmortemStats;
+  var maeBefore = window.__lastPostmortemMAE;
+  var cfg = await loadConfig();
+  var weightsBefore = {};
+  var weightsAfter = {};
+
+  for (var k of Object.keys(DEFAULT_WEIGHTS)) {
+    var cur = (cfg.weights[k] && cfg.weights[k].value) || DEFAULT_WEIGHTS[k].value;
+    weightsBefore[k] = cur;
+    var cs = compStats[k];
+    var nudge = cs ? (cs.nudge || 0) : 0;
+    weightsAfter[k] = Math.max(0, Math.min(50, cur + nudge));
+  }
+
+  // Normalize to 100
+  var total = Object.values(weightsAfter).reduce(function(a,b){return a+b;},0);
+  if (total !== 100 && total > 0) {
+    var diff = 100 - total;
+    var active = Object.keys(weightsAfter).filter(function(k){return weightsAfter[k] > 0;});
+    var per = Math.round(diff / active.length);
+    for (var i = 0; i < active.length; i++) {
+      if (i === active.length - 1) weightsAfter[active[i]] += (100 - Object.values(weightsAfter).reduce(function(a,b){return a+b;},0));
+      else weightsAfter[active[i]] += per;
+      weightsAfter[active[i]] = Math.max(0, weightsAfter[active[i]]);
+    }
+  }
+
+  // Apply to config
+  var newWeights = {};
+  for (var k of Object.keys(DEFAULT_WEIGHTS)) {
+    newWeights[k] = { label: DEFAULT_WEIGHTS[k].label, value: weightsAfter[k] };
+  }
+  cfg.weights = newWeights;
+  await store.set('model_config', JSON.stringify(cfg));
+
+  // Log the weight change
+  var delta = {};
+  for (var k of Object.keys(weightsAfter)) {
+    var d = weightsAfter[k] - weightsBefore[k];
+    if (d !== 0) delta[k] = d;
+  }
+  try {
+    var changelog = [];
+    var clr = await store.get('weight_changelog');
+    if (clr) changelog = JSON.parse(clr.value);
+    changelog.push({
+      applied_at: new Date().toISOString(), source: 'post-mortem',
+      weights_before: weightsBefore, weights_after: weightsAfter, delta: delta,
+      mae_before: maeBefore, mae_after: null,
+      games_under_old_weights: 0, games_under_new_weights: 0, verdict: null,
+    });
+    await store.set('weight_changelog', JSON.stringify(changelog));
+  } catch (e) {}
+
+  // Update the UI
+  initWeightEditor();
+  renderWeightChangelog();
+  addLog('Post-mortem weights applied: ' + Object.entries(delta).map(function(e){return e[0] + (e[1]>0?'+':'')+e[1]+'%';}).join(', '), 'ok');
+  alert('Weights updated from post-mortem analysis. Check Model Config tab.');
 }
 
 // ═══════════════════════════════════════════════════════════════════
