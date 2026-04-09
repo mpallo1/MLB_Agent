@@ -2690,8 +2690,15 @@ async function applyESPNResults(dateStr, espnResults) {
       // Determine if market fav is the home team using actual abbreviations
       // g.code format is "AWY@HOM" (e.g., "ARI@NYM")
       const codeParts = (g.code || '').split('@');
-      const gameAwayAbbr = (codeParts[0] || '').toUpperCase();
-      const gameHomeAbbr = (codeParts[1] || '').toUpperCase();
+      var gameAwayAbbr = (codeParts[0] || '').toUpperCase();
+      var gameHomeAbbr = (codeParts[1] || '').toUpperCase();
+      // Fallback for older archives without code field
+      if (!gameHomeAbbr) {
+        var _nta = {'New York Yankees':'NYY','New York Mets':'NYM','Los Angeles Dodgers':'LAD','Los Angeles Angels':'LAA','Chicago Cubs':'CHC','Chicago White Sox':'CHW','St. Louis Cardinals':'STL','San Francisco Giants':'SF','San Diego Padres':'SD','Tampa Bay Rays':'TB','Kansas City Royals':'KC','Washington Nationals':'WSH','Atlanta Braves':'ATL','Arizona Diamondbacks':'ARI','Baltimore Orioles':'BAL','Boston Red Sox':'BOS','Cincinnati Reds':'CIN','Cleveland Guardians':'CLE','Colorado Rockies':'COL','Detroit Tigers':'DET','Houston Astros':'HOU','Miami Marlins':'MIA','Milwaukee Brewers':'MIL','Minnesota Twins':'MIN','Oakland Athletics':'OAK','Athletics':'OAK','Philadelphia Phillies':'PHI','Pittsburgh Pirates':'PIT','Seattle Mariners':'SEA','Texas Rangers':'TEX','Toronto Blue Jays':'TOR'};
+        gameHomeAbbr = _nta[g.home] || '';
+        gameAwayAbbr = _nta[g.away] || '';
+        if (gameHomeAbbr && gameAwayAbbr) g.code = gameAwayAbbr + '@' + gameHomeAbbr;
+      }
       const favIsHome = mktFavAbbr ? (mktFavAbbr === gameHomeAbbr) : (match.homeScore > match.awayScore);
       
       const favScore = favIsHome ? match.homeScore : match.awayScore;
@@ -2950,7 +2957,7 @@ async function recomputeAllATS() {
   var allKeys = [];
   for (var i = 0; i < localStorage.length; i++) {
     var k = localStorage.key(i);
-    if (k.startsWith(store.prefix + 'archive_')) allKeys.push(k);
+    if (k.startsWith('mlb_archive_')) allKeys.push(k);
   }
   
   for (var ki = 0; ki < allKeys.length; ki++) {
