@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MLB Line Scout — v2</title>
+<title>MLB Line Scout — v3</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap');
   :root {
@@ -302,7 +302,7 @@
 <body>
 
 <header>
-  <div class="logo"><div class="logo-dot"></div>MLB LINE SCOUT <span class="logo-version">V2</span></div>
+  <div class="logo"><div class="logo-dot"></div>MLB LINE SCOUT <span class="logo-version">V3</span></div>
   <div class="header-right">
     <span class="status-chip" id="lastRunChip">NEVER RUN</span>
     <button class="run-btn" id="mainRunBtn" onclick="runAgent()">
@@ -362,6 +362,9 @@
         </label>
         <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);color:var(--text3);cursor:pointer">
           <input type="checkbox" id="propsShowTB" checked onchange="renderPropsFromCache()" style="accent-color:var(--green)"> Total Bases
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);color:var(--text3);cursor:pointer">
+          <input type="checkbox" id="propsShowHits" checked onchange="renderPropsFromCache()" style="accent-color:var(--green)"> Hits
         </label>
       </div>
       <div id="propsContainer">
@@ -451,6 +454,45 @@
           </div>
         </div>
       </div>
+      <!-- Baseball Savant Pitchers -->
+      <div style="border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">⚡ Savant Pitcher Stats <span style="font-size:10px;font-weight:400;color:var(--text3)">(xERA, barrel%, hard_hit% — BEST predictor)</span></div>
+            <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:8px">Paste in F12 console on <code style="color:var(--blue)">baseballsavant.mlb.com/leaderboard/expected_statistics?type=pitcher</code></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="btn-sm primary" id="syncSavPitBtn" onclick="syncSavantPitchers()">⟳ Sync Savant Pitchers</button>
+              <span id="savPitSyncStatus" style="font-size:10px;font-family:var(--mono);color:var(--text3)">Not synced — using ESPN ERA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Baseball Savant Batters -->
+      <div style="border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">⚡ Savant Batter Stats <span style="font-size:10px;font-weight:400;color:var(--text3)">(xwOBA, xSLG, barrel% — for lineup + props)</span></div>
+            <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:8px">Paste in F12 console on <code style="color:var(--blue)">baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter</code></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="btn-sm primary" id="syncSavBatBtn" onclick="syncSavantBatters()">⟳ Sync Savant Batters</button>
+              <span id="savBatSyncStatus" style="font-size:10px;font-family:var(--mono);color:var(--text3)">Not synced — using team OPS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- RotoWire Daily Lineups -->
+      <div style="border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;color:var(--amber);margin-bottom:4px">📋 Today's Lineups <span style="font-size:10px;font-weight:400;color:var(--text3)">(daily — confirmed batting orders for lineup-level analysis)</span></div>
+            <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:8px">Paste in F12 console on <code style="color:var(--blue)">rotowire.com/baseball/daily-lineups.php</code></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="btn-sm primary" id="syncRWBtn" onclick="syncRotoWireLineups()">⟳ Sync Lineups</button>
+              <span id="rwSyncStatus" style="font-size:10px;font-family:var(--mono);color:var(--text3)">Not synced — using team averages</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <!-- BallparkPal Park Factors (optional) -->
       <div style="border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -515,7 +557,7 @@
           <select id="archiveDatePicker" class="config-input" style="max-width:180px;font-size:11px" onchange="loadArchiveDay(this.value)">
             <option value="">— Select date —</option>
           </select>
-          <button class="btn-sm" onclick="clearHistory()">Clear All</button>
+          <button class="btn-sm" onclick="recomputeAllATS()">🔄 Recompute ATS</button> <button class="btn-sm" onclick="clearHistory()">Clear All</button>
         </div>
       </div>
       <div id="archiveContainer"><div class="empty"><div class="empty-icon">📦</div>No archived runs yet.</div></div>
@@ -885,6 +927,9 @@ let _brSplitsVsLHP = {};     // ESPN abbr → { avg, obp, slg, ops, hr, so, bb, 
 let _brSplitsVsRHP = {};     // ESPN abbr → { avg, obp, slg, ops, hr, so, bb, pa, babip }
 let _playerStatsCache = {};  // "Player Name" → { team, pa, hr, avg, slg, ops, so, bb, war }
 let _espnRosterCache = {};   // ESPN abbr → [{ name, id, bats, throws, position }]
+let _savantPitcherCache = {}; // "Last, First" → { xera, xba, xslg, xwoba, barrel_pct, hard_hit_pct, era, pa }
+let _savantBatterCache = {};  // "Last, First" → { xba, xslg, xwoba, barrel_pct, hard_hit_pct, exit_velo, pa }
+let _lineupCache = {};        // ESPN abbr → [{ order, pos, name, bats }] from RotoWire
 let _brSyncDate = null;
 let _mlbStatsCache = null;
 let _mlbStatsCacheDate = null;
@@ -1304,6 +1349,9 @@ async function processBRSplitsRHPPaste(boxId) {
 }
 
 // BallparkPal daily park factors scraper
+const SAVANT_PITCHER_SCRAPER = '(function(){if(!window.data||!window.data.length){console.error("No data found. Are you on the Savant expected stats page?");return;}var payload=JSON.stringify({type:"savant_pitchers",count:window.data.length,data:window.data.map(function(p){return{name:p.entity_name,team:p.entity_team_name,id:p.entity_id,pa:parseInt(p.pa)||0,era:parseFloat(p.era)||null,xera:parseFloat(p.xera)||null,ba:p.ba,xba:p.est_ba,slg:p.slg,xslg:p.est_slg,woba:p.woba,xwoba:p.est_woba,barrel_pct:p.barrels_per_pa,hard_hit_pct:p.hard_hit_percent,exit_velo:parseFloat(p.exit_velocity_avg)||null,era_minus_xera:parseFloat(p.era_minus_xera_diff)||null};})});copy(payload);console.log("DONE! "+window.data.length+" pitchers. Paste into MLB Line Scout.");})();';
+const SAVANT_BATTER_SCRAPER = '(function(){if(!window.data||!window.data.length){console.error("No data found. Are you on the Savant expected stats page?");return;}var payload=JSON.stringify({type:"savant_batters",count:window.data.length,data:window.data.map(function(p){return{name:p.entity_name,team:p.entity_team_name,id:p.entity_id,pa:parseInt(p.pa)||0,ba:p.ba,xba:p.est_ba,slg:p.slg,xslg:p.est_slg,woba:p.woba,xwoba:p.est_woba,barrel_pct:p.barrels_per_pa,barrel_ct:parseInt(p.barrel_ct)||0,hard_hit_pct:p.hard_hit_percent,exit_velo:parseFloat(p.exit_velocity_avg)||null};})});copy(payload);console.log("DONE! "+window.data.length+" batters. Paste into MLB Line Scout.");})();';
+const ROTOWIRE_LINEUP_SCRAPER = '(function(){var lists=document.querySelectorAll(".lineup__list");var abbrs=document.querySelectorAll(".lineup__abbr");var statuses=document.querySelectorAll(".lineup__status");if(!lists.length){console.error("No lineups found");return;}var NL=String.fromCharCode(10);var games={};for(var i=0;i<lists.length;i++){var team=abbrs[i]?abbrs[i].textContent.trim():"UNK";var status=statuses[Math.floor(i/2)]?statuses[Math.floor(i/2)].textContent.trim():"unknown";var players=lists[i].querySelectorAll(".lineup__player");var lineup=[];players.forEach(function(p,j){var parts=p.textContent.trim().split(NL).map(function(s){return s.trim();}).filter(Boolean);lineup.push({order:j+1,pos:parts[0]||null,name:parts[1]||null,bats:parts[2]||null});});games[team]={lineup:lineup,status:status.indexOf("Confirmed")>=0?"confirmed":"projected"};}var payload=JSON.stringify({type:"rotowire_lineups",count:Object.keys(games).length,data:games});copy(payload);console.log("DONE! "+Object.keys(games).length+" teams. Paste into MLB Line Scout.");})();';
 const BPP_SCRAPER = '(function(){try{var tables=document.querySelectorAll("table");var t=null;for(var i=0;i<tables.length;i++){if(tables[i].querySelector("th")&&tables[i].querySelectorAll("tr").length>5){t=tables[i];break;}}if(!t){console.error("No park factors table found on this page.");return;}var headers=[];var ths=t.querySelectorAll("thead th,tr:first-child th");ths.forEach(function(th){headers.push(th.textContent.trim().toLowerCase());});var rows=t.querySelectorAll("tbody tr,tr");var data={};var ct=0;for(var r=0;r<rows.length;r++){var cells=rows[r].querySelectorAll("td");if(cells.length<3)continue;var game=cells[0]?cells[0].textContent.trim():null;if(!game)continue;var obj={game:game};for(var c=1;c<cells.length&&c<headers.length;c++){obj[headers[c]]=cells[c].textContent.trim();}data[game]=obj;ct++;}var payload=JSON.stringify({type:"bpp_park_factors",count:ct,data:data});if(typeof copy==="function"){copy(payload);console.log("DONE! "+ct+" games park factors copied.");}else{console.log(payload);}}catch(e){console.error("Error:",e.message);}})();';
 
 function syncBallparkPal() {
@@ -1364,6 +1412,151 @@ async function processBRPlayerPaste(boxId) {
   } catch (e) { pasteStatus.textContent = '✗ JSON parse error'; pasteStatus.style.color = 'var(--red)'; }
 }
 
+
+// Savant pitcher sync
+function syncSavantPitchers() {
+  buildSyncUI('syncSavPitBtn', 'Savant Pitcher Stats', '⚡',
+    'https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=pitcher&year=2026&position=&team=&min=1',
+    SAVANT_PITCHER_SCRAPER, 'processSavantPitcherPaste', 'savPitSyncStatus');
+}
+async function processSavantPitcherPaste(boxId) {
+  var pasteBox = document.getElementById(boxId + '_paste');
+  var pasteStatus = document.getElementById(boxId + '_status');
+  var status = document.getElementById('savPitSyncStatus');
+  var raw = (pasteBox?.value || '').trim();
+  if (!raw) { pasteStatus.textContent = '✗ Empty'; pasteStatus.style.color = 'var(--red)'; return; }
+  try {
+    var payload = JSON.parse(raw);
+    if (payload.type !== 'savant_pitchers' || !payload.data) { pasteStatus.textContent = '✗ Invalid format'; pasteStatus.style.color = 'var(--red)'; return; }
+    _savantPitcherCache = {};
+    payload.data.forEach(function(p) {
+      if (p.name) _savantPitcherCache[p.name] = p;
+    });
+    try { await store.set('savant_pitchers_' + new Date().toDateString(), JSON.stringify(_savantPitcherCache)); } catch (err) {}
+    var ct = Object.keys(_savantPitcherCache).length;
+    status.textContent = '✓ ' + ct + ' pitchers — xERA, barrel%, hard_hit%';
+    status.style.color = 'var(--green)';
+    pasteStatus.textContent = '✓ Loaded!'; pasteStatus.style.color = 'var(--green)';
+    addLog('Savant pitchers: ' + ct + ' synced (xERA, barrel%, hard_hit%)', 'ok');
+    document.getElementById(boxId)?.remove();
+  } catch (e) { pasteStatus.textContent = '✗ JSON parse error'; pasteStatus.style.color = 'var(--red)'; }
+}
+
+// Savant batter sync
+function syncSavantBatters() {
+  buildSyncUI('syncSavBatBtn', 'Savant Batter Stats', '⚡',
+    'https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=2026&position=&team=&min=1',
+    SAVANT_BATTER_SCRAPER, 'processSavantBatterPaste', 'savBatSyncStatus');
+}
+async function processSavantBatterPaste(boxId) {
+  var pasteBox = document.getElementById(boxId + '_paste');
+  var pasteStatus = document.getElementById(boxId + '_status');
+  var status = document.getElementById('savBatSyncStatus');
+  var raw = (pasteBox?.value || '').trim();
+  if (!raw) { pasteStatus.textContent = '✗ Empty'; pasteStatus.style.color = 'var(--red)'; return; }
+  try {
+    var payload = JSON.parse(raw);
+    if (payload.type !== 'savant_batters' || !payload.data) { pasteStatus.textContent = '✗ Invalid format'; pasteStatus.style.color = 'var(--red)'; return; }
+    _savantBatterCache = {};
+    payload.data.forEach(function(p) {
+      if (p.name) _savantBatterCache[p.name] = p;
+    });
+    try { await store.set('savant_batters_' + new Date().toDateString(), JSON.stringify(_savantBatterCache)); } catch (err) {}
+    var ct = Object.keys(_savantBatterCache).length;
+    status.textContent = '✓ ' + ct + ' batters — xwOBA, xSLG, barrel%';
+    status.style.color = 'var(--green)';
+    pasteStatus.textContent = '✓ Loaded!'; pasteStatus.style.color = 'var(--green)';
+    addLog('Savant batters: ' + ct + ' synced (xwOBA, xSLG, barrel%)', 'ok');
+    document.getElementById(boxId)?.remove();
+  } catch (e) { pasteStatus.textContent = '✗ JSON parse error'; pasteStatus.style.color = 'var(--red)'; }
+}
+
+// RotoWire lineup sync
+function syncRotoWireLineups() {
+  buildSyncUI('syncRWBtn', 'RotoWire Daily Lineups', '📋',
+    'https://www.rotowire.com/baseball/daily-lineups.php',
+    ROTOWIRE_LINEUP_SCRAPER, 'processRotoWireLineupPaste', 'rwSyncStatus');
+}
+async function processRotoWireLineupPaste(boxId) {
+  var pasteBox = document.getElementById(boxId + '_paste');
+  var pasteStatus = document.getElementById(boxId + '_status');
+  var status = document.getElementById('rwSyncStatus');
+  var raw = (pasteBox?.value || '').trim();
+  if (!raw) { pasteStatus.textContent = '✗ Empty'; pasteStatus.style.color = 'var(--red)'; return; }
+  try {
+    var payload = JSON.parse(raw);
+    if (payload.type !== 'rotowire_lineups' || !payload.data) { pasteStatus.textContent = '✗ Invalid format'; pasteStatus.style.color = 'var(--red)'; return; }
+    _lineupCache = payload.data;
+    var confirmed = Object.values(_lineupCache).filter(function(t) { return t.status === 'confirmed'; }).length;
+    try { await store.set('rw_lineups_' + new Date().toDateString(), JSON.stringify(_lineupCache)); } catch (err) {}
+    status.textContent = '✓ ' + Object.keys(_lineupCache).length + ' teams (' + confirmed + ' confirmed)';
+    status.style.color = 'var(--green)';
+    pasteStatus.textContent = '✓ Loaded!'; pasteStatus.style.color = 'var(--green)';
+    addLog('Lineups: ' + Object.keys(_lineupCache).length + ' teams (' + confirmed + ' confirmed)', 'ok');
+    document.getElementById(boxId)?.remove();
+  } catch (e) { pasteStatus.textContent = '✗ JSON parse error'; pasteStatus.style.color = 'var(--red)'; }
+}
+
+// Helper: find Savant pitcher by name (handles "Last, First" vs "First Last" formats)
+function findSavantPitcher(name) {
+  if (!name) return null;
+  // Direct match
+  if (_savantPitcherCache[name]) return _savantPitcherCache[name];
+  // Try "Last, First" format
+  var parts = name.split(' ');
+  if (parts.length >= 2) {
+    var lastFirst = parts[parts.length - 1] + ', ' + parts.slice(0, -1).join(' ');
+    if (_savantPitcherCache[lastFirst]) return _savantPitcherCache[lastFirst];
+    // Try with Jr./III suffix handling
+    for (var key in _savantPitcherCache) {
+      if (key.toLowerCase().indexOf(parts[parts.length-1].toLowerCase()) === 0 &&
+          key.toLowerCase().indexOf(parts[0].toLowerCase()) > 0) {
+        return _savantPitcherCache[key];
+      }
+    }
+  }
+  return null;
+}
+
+// Helper: find Savant batter by name
+function findSavantBatter(name) {
+  if (!name) return null;
+  if (_savantBatterCache[name]) return _savantBatterCache[name];
+  var parts = name.split(' ');
+  if (parts.length >= 2) {
+    var lastFirst = parts[parts.length - 1] + ', ' + parts.slice(0, -1).join(' ');
+    if (_savantBatterCache[lastFirst]) return _savantBatterCache[lastFirst];
+    for (var key in _savantBatterCache) {
+      if (key.toLowerCase().indexOf(parts[parts.length-1].toLowerCase()) === 0 &&
+          key.toLowerCase().indexOf(parts[0].toLowerCase()) > 0) {
+        return _savantBatterCache[key];
+      }
+    }
+  }
+  return null;
+}
+
+// Compute lineup-level xwOBA from RotoWire lineup + Savant batter cache
+function computeLineupXwoba(teamAbbr) {
+  var lineup = _lineupCache[teamAbbr];
+  if (!lineup || !lineup.lineup || lineup.lineup.length < 5) return null;
+  if (Object.keys(_savantBatterCache).length === 0) return null;
+  
+  var totalXwoba = 0, totalWeight = 0;
+  lineup.lineup.forEach(function(batter) {
+    var savant = findSavantBatter(batter.name);
+    if (savant && savant.xwoba) {
+      // Weight by batting order position (top of order gets more PA)
+      var paWeight = batter.order <= 3 ? 1.15 : batter.order <= 6 ? 1.0 : 0.85;
+      totalXwoba += parseFloat(savant.xwoba) * paWeight;
+      totalWeight += paWeight;
+    }
+  });
+  
+  if (totalWeight < 3.0) return null; // Not enough matches
+  return totalXwoba / totalWeight;
+}
+
 async function checkStatsCache() {
   const dateKey = new Date().toDateString();
   if (!_brAdvStats || !Object.keys(_brAdvStats).length) {
@@ -1399,6 +1592,26 @@ async function checkStatsCache() {
       if (r) { _playerStatsCache = JSON.parse(r.value); addLog('BR player batting cache loaded: ' + Object.keys(_playerStatsCache).length, 'ok'); }
     } catch (e) {}
   }
+  // Load Savant caches
+  if (!Object.keys(_savantPitcherCache).length) {
+    try {
+      const r = await store.get('savant_pitchers_' + dateKey);
+      if (r) { _savantPitcherCache = JSON.parse(r.value); addLog('Savant pitcher cache loaded: ' + Object.keys(_savantPitcherCache).length, 'ok'); }
+    } catch (e) {}
+  }
+  if (!Object.keys(_savantBatterCache).length) {
+    try {
+      const r = await store.get('savant_batters_' + dateKey);
+      if (r) { _savantBatterCache = JSON.parse(r.value); addLog('Savant batter cache loaded: ' + Object.keys(_savantBatterCache).length, 'ok'); }
+    } catch (e) {}
+  }
+  // Load lineup cache
+  if (!Object.keys(_lineupCache).length) {
+    try {
+      const r = await store.get('rw_lineups_' + dateKey);
+      if (r) { _lineupCache = JSON.parse(r.value); addLog('Lineup cache loaded: ' + Object.keys(_lineupCache).length + ' teams', 'ok'); }
+    } catch (e) {}
+  }
   if (Object.keys(_brAdvStats).length || Object.keys(_brSplitsVsLHP).length || Object.keys(_brSplitsVsRHP).length) {
     buildMLBStatsCache();
   }
@@ -1419,244 +1632,308 @@ function computeSpread(g, weights) {
   const wt = weights || {};
   const w = function (key) { return ((wt[key] && wt[key].value) || 0) / 100; };
 
-  // ── Park factor (used to scale offensive components) ──────────
+  // ── Park + Weather factors ────────────────────────────────────
   const homeAbbr = g.homeAbbr || '';
-  const parkFactor = PARK_FACTORS[homeAbbr] || 1.00;
-  // Park amplifies offensive differences: a .050 OPS gap matters more at Coors
-  const parkOffenseScale = 1.0 + (parkFactor - 1.0) * 0.5; // half the park effect applies to spread
+  const staticParkFactor = PARK_FACTORS[homeAbbr] || 1.00;
+  
+  // BallparkPal weather-adjusted factors (daily, includes wind/temp/humidity)
+  var bppData = null;
+  var bppRunsFactor = 0; // +/- runs vs MLB average
+  var bppHRFactor = 0;   // +/- HR% vs average
+  if (window._bppParkFactors) {
+    // Match BPP data by team abbreviation in the game key
+    for (var bk in window._bppParkFactors) {
+      if (bk.indexOf(homeAbbr) >= 0 || bk.indexOf(g.awayAbbr) >= 0) {
+        bppData = window._bppParkFactors[bk];
+        bppRunsFactor = parseFloat(bppData.runs) || 0;
+        bppHRFactor = parseFloat(bppData.hr) || 0;
+        break;
+      }
+    }
+  }
+  // Use BPP weather-adjusted factor when available, else static
+  var parkFactor = bppData ? 1.0 + (bppRunsFactor / 9.0) : staticParkFactor;
+  var parkHRFactor = bppData ? 1.0 + (bppHRFactor / 1.0) : staticParkFactor;
+  var parkOffenseScale = 1.0 + (parkFactor - 1.0) * 0.5;
 
   // ── 1. BASE — Pythagorean W% edge ────────────────────────────
-  // Derivation: .550 Pyth team ≈ 89 wins, .450 ≈ 73 wins
-  // Per-game edge: (89-73)/162 ≈ 0.099 win probability gap
-  // In runs: ~0.5 runs per game for a .100 Pyth gap
-  // So scaling = 5.0 runs per 1.0 W% diff
   function pythProxy(stats) {
     if (stats.pyth_win_pct != null) return parseFloat(stats.pyth_win_pct);
-    const rpg = parseFloat(stats.runs_pg) || 4.5;
-    const rapg = parseFloat(stats.runs_allowed_pg) || 4.5;
+    var rpg = parseFloat(stats.runs_pg) || 4.5;
+    var rapg = parseFloat(stats.runs_allowed_pg) || 4.5;
     return (rpg + rapg) > 0 ? Math.pow(rpg, 1.83) / (Math.pow(rpg, 1.83) + Math.pow(rapg, 1.83)) : 0.5;
   }
-  const aPyth = pythProxy(a), hPyth = pythProxy(h);
-  const base = (hPyth - aPyth) * 5.0; // positive = home better
+  var aPyth = pythProxy(a), hPyth = pythProxy(h);
+  var base = (hPyth - aPyth) * 5.0;
 
-  // ── 2. STARTER — pitcher quality edge ────────────────────────
-  // Derivation: ERA is runs per 9 innings. Starter pitches ~6 IP.
-  // 1.0 ERA gap over 6 IP = 6/9 * 1.0 = 0.667 run differential
-  // But ERA includes defense/luck, so discount to ~0.45 per 1.0 ERA
-  const awayStarter = g.away_starter || {};
-  const homeStarter = g.home_starter || {};
-  function getStarterERA(starter) {
-    const name = starter.name;
-    if (name && _espnPitcherStats[name]) {
-      const ps = _espnPitcherStats[name];
-      return { era: ps.era, fip: null, ip: ps.ip, k9: ps.k9, bb9: ps.bb9, k: ps.k, games: ps.games, source: 'espn' };
+  // ── 2. STARTER — blended pitcher quality (xERA + xwOBA against)
+  var awayStarter = g.away_starter || {};
+  var homeStarter = g.home_starter || {};
+  function getStarterStats(starter) {
+    var name = starter.name;
+    var era = 4.50, xera = null, fip = null, k9 = null, bb9 = null, ip = null, k = null, games = 0, source = 'default';
+    var barrel_pct = null, hard_hit_pct = null, xwoba_against = null, exit_velo_against = null;
+    var era_minus_xera = null;
+    var savant = findSavantPitcher(name);
+    if (savant) {
+      xera = savant.xera != null ? parseFloat(savant.xera) : null;
+      era = savant.era != null ? parseFloat(savant.era) : era;
+      barrel_pct = parseFloat(savant.barrel_pct) || null;
+      hard_hit_pct = parseFloat(savant.hard_hit_pct) || null;
+      xwoba_against = parseFloat(savant.xwoba) || null;
+      exit_velo_against = parseFloat(savant.exit_velo) || null;
+      era_minus_xera = parseFloat(savant.era_minus_xera) || null;
+      source = 'savant';
     }
-    return { era: 4.50, fip: null, ip: null, k9: null, bb9: null, k: null, games: 0, source: 'default' };
+    if (name && _espnPitcherStats[name]) {
+      var ps = _espnPitcherStats[name];
+      k9 = ps.k9; bb9 = ps.bb9; ip = ps.ip; k = ps.k; games = ps.games;
+      if (!xera && ps.era != null) era = ps.era;
+      if (source === 'default') source = 'espn';
+    }
+    // Blended pitcher quality: 50% xERA + 50% xwOBA-derived ERA
+    // xwOBA against → runs: xwOBA .320 ≈ 4.50 ERA, .280 ≈ 3.50, .360 ≈ 5.50
+    var xwobaERA = xwoba_against ? (xwoba_against - 0.320) * 10.0 + 4.50 : null;
+    var bestERA;
+    if (xera && xwobaERA) bestERA = (xera + xwobaERA) / 2; // 50/50 blend
+    else if (xera) bestERA = xera;
+    else if (xwobaERA) bestERA = xwobaERA;
+    else bestERA = Math.max(1.50, Math.min(7.00, era));
+    return { era:era, xera:xera, fip:fip, bestERA:bestERA, xwoba_against:xwoba_against, k9:k9, bb9:bb9, ip:ip, k:k, games:games, source:source, barrel_pct:barrel_pct, hard_hit_pct:hard_hit_pct, exit_velo_against:exit_velo_against, era_minus_xera:era_minus_xera };
   }
-  const awayP = getStarterERA(awayStarter);
-  const homeP = getStarterERA(homeStarter);
-  const confDiscount = (awayStarter.confidence === 'Confirmed' || awayStarter.confidence === 'confirmed') &&
-                       (homeStarter.confidence === 'Confirmed' || homeStarter.confidence === 'confirmed') ? 1.0 : 0.65;
-  // positive = home pitcher better (lower ERA)
-  const starter_edge = (awayP.era - homeP.era) * 0.45 * confDiscount;
+  var awayP = getStarterStats(awayStarter);
+  var homeP = getStarterStats(homeStarter);
+  var confDiscount = (awayStarter.confidence === 'Confirmed' || awayStarter.confidence === 'confirmed') &&
+                     (homeStarter.confidence === 'Confirmed' || homeStarter.confidence === 'confirmed') ? 1.0 : 0.65;
+  var raw_starter = (awayP.bestERA - homeP.bestERA) * 0.45 * confDiscount;
+  var starter_edge = Math.max(-2.0, Math.min(2.0, raw_starter));
 
-  // ── 3. BATTING — merged lineup + platoon (park-adjusted) ─────
-  // Uses platoon splits when available, overall OPS when not.
-  // ONE component, not two. Platoon IS the better lineup measure.
-  //
-  // Derivation: .050 OPS gap ≈ 0.25 runs per game historically
-  // So scaling = 5.0 runs per 1.0 OPS diff
-  // Park factor amplifies: at Coors (1.35), offensive gaps widen
+  // ── 3. BATTING — lineup xwOBA with matchup interaction ────────
   function getStarterHand(starter) {
     if (!starter || !starter.name) return 'R';
     var ps = _espnPitcherStats[starter.name];
     if (ps && ps.throws) return ps.throws;
     for (var abbr in _espnRosterCache) {
       var roster = _espnRosterCache[abbr] || [];
-      for (var i = 0; i < roster.length; i++) {
-        if (roster[i].name === starter.name && roster[i].throws) return roster[i].throws;
+      for (var ii = 0; ii < roster.length; ii++) {
+        if (roster[ii].name === starter.name && roster[ii].throws) return roster[ii].throws;
       }
     }
     return 'R';
   }
-  var homeStarterHand = getStarterHand(g.away_starter); // away pitcher faces home lineup
-  var awayStarterHand = getStarterHand(g.home_starter); // home pitcher faces away lineup
+  var homeStarterHand = getStarterHand(g.away_starter);
+  var awayStarterHand = getStarterHand(g.home_starter);
 
-  // Get the best available OPS for each lineup vs this specific starter hand
-  const aOPS = parseFloat(a.team_ops || a.ops) || 0.720;
-  const hOPS = parseFloat(h.team_ops || h.ops) || 0.720;
-  var awayBattingOPS = aOPS, homeBattingOPS = hOPS;
-  var hasPlatoonData = false;
+  var aOPS = parseFloat(a.team_ops || a.ops) || 0.720;
+  var hOPS = parseFloat(h.team_ops || h.ops) || 0.720;
+  var awayBattingVal = aOPS, homeBattingVal = hOPS;
+  var battingSource = 'team_ops';
+  var hasPlatoonData = false, hasLineupData = false;
 
-  if (homeStarterHand === 'L' && _brSplitsVsLHP[g.awayAbbr]) {
-    awayBattingOPS = _brSplitsVsLHP[g.awayAbbr].ops;
-    hasPlatoonData = true;
-  } else if (homeStarterHand === 'R' && _brSplitsVsRHP[g.awayAbbr]) {
-    awayBattingOPS = _brSplitsVsRHP[g.awayAbbr].ops;
-    hasPlatoonData = true;
+  if (homeStarterHand === 'L' && _brSplitsVsLHP[g.awayAbbr]) { awayBattingVal = _brSplitsVsLHP[g.awayAbbr].ops; hasPlatoonData = true; }
+  else if (homeStarterHand === 'R' && _brSplitsVsRHP[g.awayAbbr]) { awayBattingVal = _brSplitsVsRHP[g.awayAbbr].ops; hasPlatoonData = true; }
+  if (awayStarterHand === 'L' && _brSplitsVsLHP[g.homeAbbr]) { homeBattingVal = _brSplitsVsLHP[g.homeAbbr].ops; hasPlatoonData = true; }
+  else if (awayStarterHand === 'R' && _brSplitsVsRHP[g.homeAbbr]) { homeBattingVal = _brSplitsVsRHP[g.homeAbbr].ops; hasPlatoonData = true; }
+  if (hasPlatoonData) battingSource = 'platoon_ops';
+
+  var awayLineupXwoba = computeLineupXwoba(g.awayAbbr);
+  var homeLineupXwoba = computeLineupXwoba(g.homeAbbr);
+  if (awayLineupXwoba && homeLineupXwoba) {
+    awayBattingVal = awayLineupXwoba;
+    homeBattingVal = homeLineupXwoba;
+    battingSource = 'lineup_xwoba';
+    hasLineupData = true;
   }
-  if (awayStarterHand === 'L' && _brSplitsVsLHP[g.homeAbbr]) {
-    homeBattingOPS = _brSplitsVsLHP[g.homeAbbr].ops;
-    hasPlatoonData = true;
-  } else if (awayStarterHand === 'R' && _brSplitsVsRHP[g.homeAbbr]) {
-    homeBattingOPS = _brSplitsVsRHP[g.homeAbbr].ops;
-    hasPlatoonData = true;
+
+  var battingScale = hasLineupData ? 12.0 : 5.0;
+  var batting_edge = (homeBattingVal - awayBattingVal) * battingScale * parkOffenseScale;
+
+  // ── 4. MATCHUP INTERACTION — lineup barrel% vs pitcher barrel% allowed
+  // This captures explosive matchup potential that individual stats miss
+  function computeLineupBarrel(teamAbbr) {
+    var lu = _lineupCache[teamAbbr];
+    if (!lu || !lu.lineup || lu.lineup.length < 5) return null;
+    if (Object.keys(_savantBatterCache).length === 0) return null;
+    var total = 0, ct = 0;
+    lu.lineup.forEach(function(b) {
+      var s = findSavantBatter(b.name);
+      if (s && s.barrel_pct) { total += parseFloat(s.barrel_pct); ct++; }
+    });
+    return ct >= 3 ? total / ct : null;
+  }
+  var awayLineupBarrel = computeLineupBarrel(g.awayAbbr);
+  var homeLineupBarrel = computeLineupBarrel(g.homeAbbr);
+  var matchup_adj = 0;
+  // Cross lineup barrel% with opposing pitcher barrel% allowed
+  // League avg barrel%: ~7% for batters, ~7% allowed for pitchers
+  if (awayLineupBarrel && homeP.barrel_pct) {
+    var awayMatchupScore = (awayLineupBarrel / 7.0) * (homeP.barrel_pct / 7.0);
+    var homeMatchupScore = 1.0;
+    if (homeLineupBarrel && awayP.barrel_pct) {
+      homeMatchupScore = (homeLineupBarrel / 7.0) * (awayP.barrel_pct / 7.0);
+    }
+    // Scale: matchup score of 2.0 (both 40% above avg) = ~0.3 extra runs
+    matchup_adj = (homeMatchupScore - awayMatchupScore) * 0.15 * parkOffenseScale;
   }
 
-  const batting_edge = (homeBattingOPS - awayBattingOPS) * 5.0 * parkOffenseScale;
+  // ── 5. BULLPEN ───────────────────────────────────────────────
+  var aBullpen = parseFloat(a.bullpen_era || a.era) || 4.00;
+  var hBullpen = parseFloat(h.bullpen_era || h.era) || 4.00;
+  var bullpen_edge = (aBullpen - hBullpen) * 0.33;
 
-  // ── 4. BULLPEN — team bullpen ERA differential ───────────────
-  // Derivation: bullpen pitches ~3 IP per game
-  // 1.0 ERA gap over 3 IP = 3/9 * 1.0 = 0.333 runs
-  // Scale: 0.33 per 1.0 ERA diff
-  const aBullpen = parseFloat(a.bullpen_era || a.era) || 4.00;
-  const hBullpen = parseFloat(h.bullpen_era || h.era) || 4.00;
-  const bullpen_edge = (aBullpen - hBullpen) * 0.33;
+  // ── 6. PARK + WEATHER ────────────────────────────────────────
+  // Weather effect on spread: extreme weather amplifies home advantage
+  // (home team adapts better to their park's weather patterns)
+  var weatherAdj = 0;
+  if (bppData) {
+    // BPP typicalflight: negative = suppressed, positive = boosted
+    var flight = parseFloat(bppData.typicalflight) || 0;
+    weatherAdj = flight * 0.03; // ±0.03 runs per flight unit, favoring home team familiarity
+  }
+  var parkSpreadEdge = (parkFactor - 1.0) * 0.4 + weatherAdj;
 
-  // ── 5. PARK — direct park factor edge on spread ──────────────
-  // Park effect on spread is small: both teams benefit equally from hitter parks.
-  // But the home team has familiarity advantage in extreme parks.
-  // At Coors (1.35): home team gains ~0.10-0.15 extra runs from park familiarity
-  const parkSpreadEdge = (parkFactor - 1.0) * 0.4; // 0.14 runs at Coors, -0.04 at Oracle
-
-  // ── 6. RECENCY — recent scoring rate vs season ───────────────
+  // ── 7. RECENCY ───────────────────────────────────────────────
   function recencyBoost(stats) {
-    const season = parseFloat(stats.runs_pg) || 4.5;
-    const recent = parseFloat(stats.recent_rpg) || season;
+    var season = parseFloat(stats.runs_pg) || 4.5;
+    var recent = parseFloat(stats.recent_rpg) || season;
     return Math.max(-0.30, Math.min(0.30, (recent - season) * 0.4));
   }
-  const recency = recencyBoost(h) - recencyBoost(a);
+  var recency = recencyBoost(h) - recencyBoost(a);
 
-  // ── 7. CONTEXT — home advantage + divisional + interleague ───
-  const homeAdv = (g.neutral_site || g.neutral) ? 0 : 0.10;
-  const awayDiv = DIVISION_MAP[g.awayAbbr] || '';
-  const homeDiv = DIVISION_MAP[g.homeAbbr] || '';
-  const isDivisional = awayDiv && homeDiv && awayDiv === homeDiv;
-  const isInterleague = awayDiv && homeDiv && awayDiv.slice(0,2) !== homeDiv.slice(0,2);
-  const context_adj = homeAdv + (isDivisional ? -0.05 : 0) + (isInterleague ? 0.03 : 0);
+  // ── 8. CONTEXT ───────────────────────────────────────────────
+  var homeAdv = (g.neutral_site || g.neutral) ? 0 : 0.10;
+  var awayDiv = DIVISION_MAP[g.awayAbbr] || '';
+  var homeDiv = DIVISION_MAP[g.homeAbbr] || '';
+  var isDivisional = awayDiv && homeDiv && awayDiv === homeDiv;
+  var isInterleague = awayDiv && homeDiv && awayDiv.slice(0,2) !== homeDiv.slice(0,2);
+  var context_adj = homeAdv + (isDivisional ? -0.05 : 0) + (isInterleague ? 0.03 : 0);
 
-  // ── DORMANT COMPONENTS ─────────────────────────────────────────
-  const aBabip = parseFloat(a.babip_against || a.babip) || 0.300;
-  const hBabip = parseFloat(h.babip_against || h.babip) || 0.300;
-  function babipRegression(babip, gamesPlayed) {
-    const excess = babip - 0.300;
+  // ── DORMANT ──────────────────────────────────────────────────
+  var aBabip = parseFloat(a.babip_against || a.babip) || 0.300;
+  var hBabip = parseFloat(h.babip_against || h.babip) || 0.300;
+  function babipRegression(babip, gp) {
+    var excess = babip - 0.300;
     if (Math.abs(excess) < 0.010) return 0;
-    const seasonRemaining = Math.max(0.05, (162 - (gamesPlayed || 81)) / 162);
-    return Math.max(-0.30, Math.min(0.30, -excess * 2.5 * seasonRemaining));
+    var rem = Math.max(0.05, (162 - (gp || 81)) / 162);
+    return Math.max(-0.30, Math.min(0.30, -excess * 2.5 * rem));
   }
-  const babip_adj = babipRegression(hBabip, h.games) - babipRegression(aBabip, a.games);
-  const bullpen_fatigue_adj = 0;
+  var babip_adj = babipRegression(hBabip, h.games) - babipRegression(aBabip, a.games);
+  var bullpen_fatigue_adj = 0;
 
-  // ── WEIGHTED SUM ──────────────────────────────────────────────
-  // Weights control RELATIVE importance of each component.
-  // The raw output should produce realistic MLB spreads (0.5 to 3.0 runs).
-  //
-  // Method: each component is in runs. We take a weighted average
-  // (not weighted sum) — this preserves the magnitude of the runs
-  // while letting weights control which components matter more.
-  //
-  // weighted_avg = sum(component_i * weight_i) / sum(weight_i for active components)
-  // Then multiply by N_active to get the combined edge.
-  //
-  // Simpler equivalent: just sum the raw components, but scale each
-  // by (its weight / average weight). This means a 28% component 
-  // contributes more than a 5% component, but the total magnitude
-  // stays in the right ballpark.
-  
-  const activeWeights = {};
-  const rawComponents = {
+  // ── LUCK FLAGS ───────────────────────────────────────────────
+  var awayLuckFlag = awayP.era_minus_xera && awayP.era_minus_xera < -0.75 ? 'LUCKY' : (awayP.era_minus_xera && awayP.era_minus_xera > 0.75 ? 'UNLUCKY' : null);
+  var homeLuckFlag = homeP.era_minus_xera && homeP.era_minus_xera < -0.75 ? 'LUCKY' : (homeP.era_minus_xera && homeP.era_minus_xera > 0.75 ? 'UNLUCKY' : null);
+
+  // ── WEIGHTED SUM ─────────────────────────────────────────────
+  var rawComponents = {
     base: base, starter: starter_edge, batting: batting_edge,
     bullpen: bullpen_edge, park: parkSpreadEdge,
     recency: recency, context: context_adj,
     babip_regression: babip_adj, bullpen_fatigue: bullpen_fatigue_adj,
   };
   
-  // Calculate the average weight of active (non-zero weight) components
-  let totalWeight = 0, activeCount = 0;
+  var totalWeight = 0, activeCount = 0;
   for (var ck in rawComponents) {
     var cw = w(ck);
     if (cw > 0) { totalWeight += cw; activeCount++; }
   }
-  const avgWeight = activeCount > 0 ? totalWeight / activeCount : 1;
-
-  // Weighted sum: scale each component by (its weight / avg weight)
-  // This means: component at average weight contributes 1x its raw value
-  // Component at 2x average weight contributes 2x its raw value
-  // Total output stays in runs, not fraction-of-runs
-  let raw = 0;
+  var avgWeight = activeCount > 0 ? totalWeight / activeCount : 1;
+  var raw = 0;
   for (var ck2 in rawComponents) {
     var cw2 = w(ck2);
-    if (cw2 > 0 && avgWeight > 0) {
-      raw += rawComponents[ck2] * (cw2 / avgWeight);
-    }
+    if (cw2 > 0 && avgWeight > 0) raw += rawComponents[ck2] * (cw2 / avgWeight);
+  }
+  // Add matchup interaction (not weight-controlled — it's a secondary adjustment)
+  raw += matchup_adj;
+
+  // ── SPREAD OUTPUT ────────────────────────────────────────────
+  var favIsHome = raw >= 0;
+  var favAbbr = favIsHome ? (g.homeAbbr || '').toUpperCase() : (g.awayAbbr || '').toUpperCase();
+  var favName = favIsHome ? g.home : g.away;
+  var mktNum = null, mktFavName = null;
+  var mkt = (g.market_spread || '').trim();
+  var mktMatch = mkt.match(/^([A-Z]+)\s+([-+]?\d+\.?\d*)/i);
+  if (mktMatch) { mktFavName = mktMatch[1].toUpperCase(); mktNum = parseFloat(mktMatch[2]); }
+  var modelDisplay = Math.round(Math.abs(raw) * 2) / 2;
+  var modelSpread = favAbbr + ' -' + modelDisplay.toFixed(1);
+  var edge = 0;
+  if (mktNum !== null) edge = Math.abs(raw) - Math.abs(mktNum);
+  var ml_lean = Math.abs(raw) > 0.05 ? (favIsHome ? 'HOME' : 'AWAY') : 'EVEN';
+  var ml_confidence = Math.abs(raw) >= 0.4 ? 'HIGH' : Math.abs(raw) >= 0.2 ? 'MED' : 'LOW';
+
+  // ── TOTALS MODEL — lineup-driven + weather ───────────────────
+  // New approach: use lineup xwOBA × pitcher quality × park × weather
+  var awayRPG = parseFloat(a.runs_pg) || 4.5;
+  var awayRAPG = parseFloat(a.runs_allowed_pg) || 4.5;
+  var homeRPG = parseFloat(h.runs_pg) || 4.5;
+  var homeRAPG = parseFloat(h.runs_allowed_pg) || 4.5;
+  
+  // Lineup-adjusted run expectation when data available
+  var awayExpected, homeExpected;
+  if (hasLineupData && awayP.source !== 'default' && homeP.source !== 'default') {
+    // lineup xwOBA → runs: .320 xwOBA ≈ 4.5 R/G, each .010 ≈ 0.45 R/G
+    var awayLineupRuns = ((awayBattingVal - 0.320) / 0.010) * 0.45 + 4.5;
+    var homeLineupRuns = ((homeBattingVal - 0.320) / 0.010) * 0.45 + 4.5;
+    // Adjust by opposing pitcher quality
+    var awayPitcherFactor = homeP.bestERA / 4.50; // >1 = worse than avg pitcher
+    var homePitcherFactor = awayP.bestERA / 4.50;
+    awayExpected = awayLineupRuns * awayPitcherFactor;
+    homeExpected = homeLineupRuns * homePitcherFactor;
+  } else {
+    awayExpected = (awayRPG + homeRAPG) / 2;
+    homeExpected = (homeRPG + awayRAPG) / 2;
   }
 
-  // Determine fav/dog
-  const favIsHome = raw >= 0;
-  const favAbbr = favIsHome ? (g.homeAbbr || '').toUpperCase() : (g.awayAbbr || '').toUpperCase();
-  const favName = favIsHome ? g.home : g.away;
+  // Weather-adjusted total
+  var weatherRunsAdj = bppRunsFactor; // direct from BPP: +0.76 = 0.76 more runs than avg game
+  var awayK9 = awayP.k9 || 8.0, homeK9 = homeP.k9 || 8.0;
+  var kSuppression = ((awayK9 + homeK9) / 2 - 8.0) * -0.08;
+  var projectedTotal = (awayExpected + homeExpected) * (bppData ? 1.0 : parkFactor) + weatherRunsAdj + kSuppression + (isDivisional ? -0.25 : 0);
+  
+  var mktTotal = parseFloat(g.market_total) || null;
+  var totalsEdge = mktTotal ? projectedTotal - mktTotal : 0;
+  var totalsLean = totalsEdge > 0.3 ? 'OVER' : totalsEdge < -0.3 ? 'UNDER' : 'PASS';
 
-  // Parse market run line
-  let mktNum = null, mktFavName = null;
-  const mkt = (g.market_spread || '').trim();
-  const mktMatch = mkt.match(/^([A-Z]+)\s+([-+]?\d+\.?\d*)/i);
-  if (mktMatch) { mktFavName = mktMatch[1].toUpperCase(); mktNum = parseFloat(mktMatch[2]); }
-
-  const modelDisplay = Math.round(Math.abs(raw) * 2) / 2;
-  const modelSpread = favAbbr + ' -' + modelDisplay.toFixed(1);
-
-  let edge = 0;
-  if (mktNum !== null) edge = Math.abs(raw) - Math.abs(mktNum);
-
-  const ml_lean = Math.abs(raw) > 0.05 ? (favIsHome ? 'HOME' : 'AWAY') : 'EVEN';
-  const ml_confidence = Math.abs(raw) >= 0.4 ? 'HIGH' : Math.abs(raw) >= 0.2 ? 'MED' : 'LOW';
-
-  // ── TOTALS MODEL — park factor adjusted, both sides ──────────
-  const awayRPG = parseFloat(a.runs_pg) || 4.5;
-  const awayRAPG = parseFloat(a.runs_allowed_pg) || 4.5;
-  const homeRPG = parseFloat(h.runs_pg) || 4.5;
-  const homeRAPG = parseFloat(h.runs_allowed_pg) || 4.5;
-  const awayExpected = (awayRPG + homeRAPG) / 2;
-  const homeExpected = (homeRPG + awayRAPG) / 2;
-  // Park factor scales TOTAL runs (both teams)
-  const awayK9 = awayP.k9 || 8.0, homeK9 = homeP.k9 || 8.0;
-  const kSuppression = ((awayK9 + homeK9) / 2 - 8.0) * -0.08;
-  const projectedTotal = (awayExpected + homeExpected) * parkFactor + kSuppression + (isDivisional ? -0.25 : 0);
-  const mktTotal = parseFloat(g.market_total) || null;
-  const totalsEdge = mktTotal ? projectedTotal - mktTotal : 0;
-  const totalsLean = totalsEdge > 0.3 ? 'OVER' : totalsEdge < -0.3 ? 'UNDER' : 'PASS';
-
-  const babipFlag = aBabip < 0.270 ? 'away_low_babip' : aBabip > 0.330 ? 'away_high_babip' :
-                    hBabip < 0.270 ? 'home_low_babip' : hBabip > 0.330 ? 'home_high_babip' : null;
+  var babipFlag = aBabip < 0.270 ? 'away_low_babip' : aBabip > 0.330 ? 'away_high_babip' :
+                  hBabip < 0.270 ? 'home_low_babip' : hBabip > 0.330 ? 'home_high_babip' : null;
 
   return {
-    favName, favIsHome, modelNum: raw, modelSpread, favAbbr,
-    mktNum, mktFavName, edge: Math.round(edge * 1000) / 1000,
-    ml_lean, ml_confidence, babipFlag, parkFactor,
-    starterConfDiscount: confDiscount, isDivisional, isInterleague,
-    hasPlatoonData: hasPlatoonData,
-    awayBattingOPS: awayBattingOPS, homeBattingOPS: homeBattingOPS,
-    awayStarterHand: awayStarterHand, homeStarterHand: homeStarterHand,
-    projectedTotal: Math.round(projectedTotal * 10) / 10,
-    totalsEdge: Math.round(totalsEdge * 100) / 100,
-    totalsLean, parkAdj: Math.round(parkFactor * 100) / 100,
-    parkOffenseScale: Math.round(parkOffenseScale * 100) / 100,
+    favName:favName, favIsHome:favIsHome, modelNum:raw, modelSpread:modelSpread, favAbbr:favAbbr,
+    mktNum:mktNum, mktFavName:mktFavName, edge:Math.round(edge*1000)/1000,
+    ml_lean:ml_lean, ml_confidence:ml_confidence, babipFlag:babipFlag, parkFactor:parkFactor,
+    starterConfDiscount:confDiscount, isDivisional:isDivisional, isInterleague:isInterleague,
+    hasPlatoonData:hasPlatoonData, hasLineupData:hasLineupData,
+    battingSource:battingSource,
+    awayBattingVal:awayBattingVal, homeBattingVal:homeBattingVal,
+    awayStarterHand:awayStarterHand, homeStarterHand:homeStarterHand,
+    awayLuckFlag:awayLuckFlag, homeLuckFlag:homeLuckFlag,
+    matchupAdj:Math.round(matchup_adj*1000)/1000,
+    bppWeather:bppData ? { runs:bppRunsFactor, hr:bppHRFactor, flight:parseFloat(bppData.typicalflight)||0, temp:bppData['hour 1'], humidity:bppData.humidity } : null,
+    projectedTotal:Math.round(projectedTotal*10)/10,
+    totalsEdge:Math.round(totalsEdge*100)/100,
+    totalsLean:totalsLean, parkAdj:Math.round(parkFactor*100)/100,
+    parkOffenseScale:Math.round(parkOffenseScale*100)/100,
     components: {
-      base: +base.toFixed(3), starter: +starter_edge.toFixed(3),
-      batting: +batting_edge.toFixed(3),
-      bullpen: +bullpen_edge.toFixed(3),
-      park: +parkSpreadEdge.toFixed(3),
-      recency: +recency.toFixed(3), context: +context_adj.toFixed(3),
-      babip_regression: +babip_adj.toFixed(3), bullpen_fatigue: +bullpen_fatigue_adj.toFixed(3),
+      base:+base.toFixed(3), starter:+starter_edge.toFixed(3),
+      batting:+batting_edge.toFixed(3), matchup:+matchup_adj.toFixed(3),
+      bullpen:+bullpen_edge.toFixed(3), park:+parkSpreadEdge.toFixed(3),
+      recency:+recency.toFixed(3), context:+context_adj.toFixed(3),
+      babip_regression:+babip_adj.toFixed(3), bullpen_fatigue:+bullpen_fatigue_adj.toFixed(3),
     },
     starterDetail: {
-      away_era: awayP.era, home_era: homeP.era,
-      away_fip: awayP.fip, home_fip: homeP.fip,
-      away_k9: awayP.k9, home_k9: homeP.k9,
-      away_ip: awayP.ip, home_ip: homeP.ip,
-      away_name: awayStarter.name || null, home_name: homeStarter.name || null,
-      away_conf: awayStarter.confidence || null, home_conf: homeStarter.confidence || null,
-      away_k: awayP.k, home_k: homeP.k, away_games: awayP.games, home_games: homeP.games,
+      away_era:awayP.era, home_era:homeP.era,
+      away_xera:awayP.xera, home_xera:homeP.xera,
+      away_bestERA:awayP.bestERA, home_bestERA:homeP.bestERA,
+      away_xwoba_against:awayP.xwoba_against, home_xwoba_against:homeP.xwoba_against,
+      away_barrel_allowed:awayP.barrel_pct, home_barrel_allowed:homeP.barrel_pct,
+      away_fip:awayP.fip, home_fip:homeP.fip,
+      away_source:awayP.source, home_source:homeP.source,
+      away_k9:awayP.k9, home_k9:homeP.k9,
+      away_ip:awayP.ip, home_ip:homeP.ip,
+      away_name:awayStarter.name||null, home_name:homeStarter.name||null,
+      away_conf:awayStarter.confidence||null, home_conf:homeStarter.confidence||null,
+      away_k:awayP.k, home_k:homeP.k, away_games:awayP.games, home_games:homeP.games,
+      away_luck:awayLuckFlag, home_luck:homeLuckFlag,
     },
   };
 }
@@ -1682,35 +1959,40 @@ function evVerdict(computed, evThreshold) {
 
 function computePlayerProps(enrichedGames) {
   const props = [];
+  const hasSavantPitchers = Object.keys(_savantPitcherCache).length > 0;
+  const hasSavantBatters = Object.keys(_savantBatterCache).length > 0;
+  const hasLineups = Object.keys(_lineupCache).length > 0;
 
   enrichedGames.forEach(function (g) {
-    const espnGame = (_espnRawGames || []).find(function (eg) {
-      return eg.awayAbbr === g.awayAbbr && eg.homeAbbr === g.homeAbbr;
-    });
+    const park = PARK_FACTORS[g.homeAbbr] || 1.00;
 
     // --- PITCHER STRIKEOUTS ---
     ['away', 'home'].forEach(function (side) {
       const starter = side === 'away' ? g.away_starter : g.home_starter;
-      const oppStats = side === 'away' ? g.home_stats : g.away_stats;
       if (!starter || !starter.name) return;
+      
+      // Get pitcher K data from ESPN or Savant
       const ps = _espnPitcherStats[starter.name];
-      if (!ps || !ps.k9 || !ps.ip) return;
+      const savant = findSavantPitcher(starter.name);
+      var k9 = (ps && ps.k9) || null;
+      var ip = (ps && ps.ip) || null;
+      var games = (ps && ps.games) || 0;
+      if (!k9 && !ip) return;
 
-      const projIP = Math.min(6.5, Math.max(4.5, (ps.ip / (ps.games || 1))));
-      const kRate = ps.k9 / 9; // K per inning
-      // Opponent K-susceptibility: if opponent team has high K rate, boost
-      const oppK = parseFloat(oppStats.k9) || 8.0; // team K/9 against
-      const oppFactor = oppK / 8.5; // normalize to league avg
-      const projectedKs = projIP * kRate * oppFactor;
-
-      // Park factor for K's (pitcher parks = slightly more K's due to less contact)
-      const park = PARK_FACTORS[g.homeAbbr] || 1.00;
-      const parkKAdj = park < 0.95 ? 1.03 : park > 1.05 ? 0.97 : 1.0; // pitcher parks boost Ks slightly
-      const finalKs = projectedKs * parkKAdj;
-
-      // Typical sportsbook lines: ~5.5 for ace, ~4.5 for mid-tier
-      const typicalLine = ps.k9 >= 10 ? 6.5 : ps.k9 >= 8.5 ? 5.5 : 4.5;
-      const kEdge = finalKs - typicalLine;
+      const projIP = Math.min(6.5, Math.max(4.5, (ip / (games || 1))));
+      const kRate = k9 / 9;
+      
+      // Opponent K-susceptibility from team stats
+      const oppStats = side === 'away' ? g.home_stats : g.away_stats;
+      const oppK = parseFloat(oppStats.k9) || 8.0;
+      const oppFactor = oppK / 8.5;
+      
+      // Park K adjustment
+      const parkKAdj = park < 0.95 ? 1.03 : park > 1.05 ? 0.97 : 1.0;
+      const projectedKs = projIP * kRate * oppFactor * parkKAdj;
+      
+      const typicalLine = k9 >= 10 ? 6.5 : k9 >= 8.5 ? 5.5 : 4.5;
+      const kEdge = projectedKs - typicalLine;
 
       props.push({
         type: 'pitcher_ks',
@@ -1719,81 +2001,148 @@ function computePlayerProps(enrichedGames) {
         opponent: side === 'away' ? g.homeAbbr : g.awayAbbr,
         matchup: g.away + ' @ ' + g.home,
         time: g.time,
-        projected: +finalKs.toFixed(1),
+        projected: +projectedKs.toFixed(1),
         typicalLine: typicalLine,
         edge: +kEdge.toFixed(1),
         isEV: kEdge >= 0.5,
         lean: kEdge >= 0.5 ? 'OVER ' + typicalLine : kEdge <= -0.5 ? 'UNDER ' + typicalLine : 'PASS',
-        detail: 'K/9: ' + (ps.k9 ? ps.k9.toFixed(1) : '?') + ' · Proj IP: ' + projIP.toFixed(1) + ' · Opp K-factor: ' + oppFactor.toFixed(2),
+        detail: 'K/9: ' + k9.toFixed(1) + ' · Proj IP: ' + projIP.toFixed(1) + ' · Opp K-factor: ' + oppFactor.toFixed(2) + (savant ? ' · xERA: ' + (savant.xera || '?') : ''),
         confidence: starter.confidence || 'projected',
-        stats: { k9: ps.k9, ip_avg: projIP, games: ps.games, total_k: ps.k, era: ps.era },
+        stats: { k9: k9, ip_avg: projIP, games: games, era: savant ? savant.xera : (ps ? ps.era : null) },
       });
     });
 
-    // --- BATTER HOME RUNS & TOTAL BASES ---
-    ['away', 'home'].forEach(function (side) {
-      const teamStats = side === 'away' ? g.away_stats : g.home_stats;
-      const oppPitcher = side === 'away' ? g.home_starter : g.away_starter;
-      const teamAbbr = side === 'away' ? g.awayAbbr : g.homeAbbr;
-      if (!teamStats) return;
+    // --- INDIVIDUAL BATTER PROPS (from lineups + Savant) ---
+    if (hasLineups && hasSavantBatters) {
+      ['away', 'home'].forEach(function (side) {
+        const teamAbbr = side === 'away' ? g.awayAbbr : g.homeAbbr;
+        const oppPitcher = side === 'away' ? g.home_starter : g.away_starter;
+        const lineup = _lineupCache[teamAbbr];
+        if (!lineup || !lineup.lineup) return;
 
-      const iso = parseFloat(teamStats.iso) || null;
-      const slg = parseFloat(teamStats.slg) || parseFloat(teamStats.ops) * 0.55 || null;
-      const hrPa = parseFloat(teamStats.hr_pa) || null;
-      const park = PARK_FACTORS[g.homeAbbr] || 1.00;
+        // Get opposing pitcher Savant data for matchup
+        const oppSavant = oppPitcher ? findSavantPitcher(oppPitcher.name) : null;
+        const oppBarrelPct = oppSavant ? (parseFloat(oppSavant.barrel_pct) || 7.0) : 7.0;
+        const oppBarrelFactor = oppBarrelPct / 7.0; // league avg ~7% barrel rate allowed
 
-      // Opponent pitcher HR vulnerability
-      const oppPs = oppPitcher && oppPitcher.name ? _espnPitcherStats[oppPitcher.name] : null;
-      const oppHRRate = oppPs && oppPs.hr_allowed && oppPs.ip ? (oppPs.hr_allowed / oppPs.ip * 9) : 1.2; // HR/9
-      const oppHRFactor = oppHRRate / 1.2; // normalize to league avg
+        lineup.lineup.forEach(function (batter) {
+          const savant = findSavantBatter(batter.name);
+          if (!savant) return;
 
-      if (hrPa && hrPa > 0.02) {
-        // Team-level HR projection per PA — estimate ~38 PA per game for a team
-        const teamHRPerGame = hrPa * 38 * oppHRFactor * park;
-        // Star player likely contributes ~15-20% of team HR — estimate top hitter
-        const starHRProb = Math.min(0.25, teamHRPerGame * 0.20);
+          const xslg = parseFloat(savant.xslg) || null;
+          const xba = parseFloat(savant.xba) || null;
+          const xwoba = parseFloat(savant.xwoba) || null;
+          const barrelPct = parseFloat(savant.barrel_pct) || 0;
+          const pa = parseInt(savant.pa) || 0;
 
-        props.push({
-          type: 'batter_hr',
-          player: teamAbbr + ' top hitters',
-          team: teamAbbr,
-          opponent: side === 'away' ? g.homeAbbr : g.awayAbbr,
-          matchup: g.away + ' @ ' + g.home,
-          time: g.time,
-          projected: +(teamHRPerGame).toFixed(2),
-          typicalLine: 0.5,
-          edge: +(teamHRPerGame - 1.0).toFixed(2), // edge vs typical ~1 HR/game
-          isEV: teamHRPerGame >= 1.3 || (park >= 1.05 && teamHRPerGame >= 1.1),
-          lean: teamHRPerGame >= 1.3 ? 'OVER team HR' : teamHRPerGame <= 0.8 ? 'UNDER team HR' : 'NEUTRAL',
-          detail: 'Team HR/PA: ' + (hrPa * 1000).toFixed(0) + '/1000 · Park: ' + park.toFixed(2) + ' · vs ' + (oppPitcher && oppPitcher.name ? oppPitcher.name : '?') + ' (HR/9: ' + oppHRRate.toFixed(1) + ')',
-          confidence: oppPitcher && oppPitcher.confidence || 'projected',
-          stats: { iso: iso, slg: slg, hr_pa: hrPa, park: park, opp_hr9: oppHRRate },
+          // Skip if insufficient data
+          if (pa < 15) return;
+
+          // HR PROP — barrel% is the most predictive stat
+          if (barrelPct > 0) {
+            // HR probability per PA ≈ barrel% × 0.75 (not all barrels are HR, but most are XBH)
+            // Typical batter gets ~4 PA per game
+            const hrProbPerPA = (barrelPct / 100) * 0.75;
+            const paPerGame = batter.order <= 3 ? 4.3 : batter.order <= 6 ? 3.9 : 3.6;
+            const hrProb = hrProbPerPA * paPerGame * park * oppBarrelFactor;
+
+            // Only show props for batters with meaningful HR potential
+            if (barrelPct >= 5.0) {
+              props.push({
+                type: 'batter_hr',
+                player: batter.name,
+                team: teamAbbr,
+                opponent: side === 'away' ? g.homeAbbr : g.awayAbbr,
+                matchup: g.away + ' @ ' + g.home,
+                time: g.time,
+                projected: +hrProb.toFixed(3),
+                typicalLine: 0.5,
+                edge: +(hrProb - 0.10).toFixed(3), // edge vs ~10% baseline
+                isEV: hrProb >= 0.15 || (park >= 1.08 && barrelPct >= 10),
+                lean: hrProb >= 0.15 ? 'YES HR' : 'MONITOR',
+                detail: 'Barrel%: ' + barrelPct.toFixed(1) + ' · Park: ' + park.toFixed(2) + ' · vs ' + (oppPitcher ? oppPitcher.name : '?') + ' (barrel allowed: ' + oppBarrelPct.toFixed(1) + '%) · xSLG: ' + (xslg || '?'),
+                confidence: lineup.status || 'projected',
+                stats: { barrel_pct: barrelPct, xslg: xslg, xwoba: xwoba, park: park, opp_barrel: oppBarrelPct, pa: pa },
+              });
+            }
+          }
+
+          // TOTAL BASES PROP
+          if (xslg) {
+            const abPerGame = batter.order <= 3 ? 4.0 : batter.order <= 6 ? 3.7 : 3.3;
+            const projTB = xslg * abPerGame * park;
+            const typicalTBLine = 1.5; // typical individual TB line
+
+            if (xslg >= 0.400) {
+              props.push({
+                type: 'batter_tb',
+                player: batter.name,
+                team: teamAbbr,
+                opponent: side === 'away' ? g.homeAbbr : g.awayAbbr,
+                matchup: g.away + ' @ ' + g.home,
+                time: g.time,
+                projected: +projTB.toFixed(2),
+                typicalLine: typicalTBLine,
+                edge: +(projTB - typicalTBLine).toFixed(2),
+                isEV: projTB >= 2.0,
+                lean: projTB >= 2.0 ? 'OVER ' + typicalTBLine : projTB <= 1.2 ? 'UNDER ' + typicalTBLine : 'PASS',
+                detail: 'xSLG: ' + xslg.toFixed(3) + ' · Bat order: #' + batter.order + ' · Park: ' + park.toFixed(2) + ' · xwOBA: ' + (xwoba ? xwoba.toFixed(3) : '?'),
+                confidence: lineup.status || 'projected',
+                stats: { xslg: xslg, xba: xba, xwoba: xwoba, park: park, bat_order: batter.order },
+              });
+            }
+          }
+
+          // HITS PROP
+          if (xba) {
+            const abPerGame = batter.order <= 3 ? 4.0 : batter.order <= 6 ? 3.7 : 3.3;
+            const projHits = xba * abPerGame;
+            const typicalHitsLine = 1.5;
+
+            if (xba >= 0.270) {
+              props.push({
+                type: 'batter_hits',
+                player: batter.name,
+                team: teamAbbr,
+                opponent: side === 'away' ? g.homeAbbr : g.awayAbbr,
+                matchup: g.away + ' @ ' + g.home,
+                time: g.time,
+                projected: +projHits.toFixed(2),
+                typicalLine: typicalHitsLine,
+                edge: +(projHits - typicalHitsLine).toFixed(2),
+                isEV: projHits >= 1.5 && xba >= 0.290,
+                lean: projHits >= 1.5 ? 'OVER ' + typicalHitsLine : 'PASS',
+                detail: 'xBA: ' + xba.toFixed(3) + ' · Bat order: #' + batter.order + ' · vs ' + (oppPitcher ? oppPitcher.name : '?'),
+                confidence: lineup.status || 'projected',
+                stats: { xba: xba, xwoba: xwoba, bat_order: batter.order },
+              });
+            }
+          }
         });
-      }
-
-      // TOTAL BASES — team-level projection
-      if (slg) {
-        const teamTBPerGame = slg * 38 * park; // SLG × PA × park
-        const typicalTBLine = 14.0; // typical team total bases line
-
-        props.push({
-          type: 'batter_tb',
-          player: teamAbbr + ' lineup',
-          team: teamAbbr,
-          opponent: side === 'away' ? g.homeAbbr : g.awayAbbr,
-          matchup: g.away + ' @ ' + g.home,
-          time: g.time,
-          projected: +teamTBPerGame.toFixed(1),
-          typicalLine: typicalTBLine,
-          edge: +(teamTBPerGame - typicalTBLine).toFixed(1),
-          isEV: Math.abs(teamTBPerGame - typicalTBLine) >= 1.0,
-          lean: teamTBPerGame >= typicalTBLine + 1.0 ? 'OVER ' + typicalTBLine : teamTBPerGame <= typicalTBLine - 1.0 ? 'UNDER ' + typicalTBLine : 'PASS',
-          detail: 'Team SLG: ' + slg.toFixed(3) + ' · ISO: ' + (iso ? iso.toFixed(3) : '?') + ' · Park: ' + park.toFixed(2),
-          confidence: oppPitcher && oppPitcher.confidence || 'projected',
-          stats: { slg: slg, iso: iso, park: park },
-        });
-      }
-    });
+      });
+    } else {
+      // Fallback: team-level props when no lineup/Savant data
+      ['away', 'home'].forEach(function (side) {
+        const teamStats = side === 'away' ? g.away_stats : g.home_stats;
+        const teamAbbr = side === 'away' ? g.awayAbbr : g.homeAbbr;
+        const slg = parseFloat(teamStats.slg) || parseFloat(teamStats.ops) * 0.55 || null;
+        const hrPa = parseFloat(teamStats.hr_pa) || null;
+        if (hrPa && hrPa > 0.02) {
+          const teamHRPerGame = hrPa * 38 * park;
+          props.push({
+            type: 'batter_hr', player: teamAbbr + ' lineup', team: teamAbbr,
+            opponent: side === 'away' ? g.homeAbbr : g.awayAbbr,
+            matchup: g.away + ' @ ' + g.home, time: g.time,
+            projected: +teamHRPerGame.toFixed(2), typicalLine: 0.5,
+            edge: +(teamHRPerGame - 1.0).toFixed(2),
+            isEV: teamHRPerGame >= 1.3,
+            lean: teamHRPerGame >= 1.3 ? 'OVER team HR' : 'NEUTRAL',
+            detail: 'Team HR/PA: ' + (hrPa * 1000).toFixed(0) + '/1000 · Park: ' + park.toFixed(2),
+            confidence: 'team-level', stats: { hr_pa: hrPa, park: park },
+          });
+        }
+      });
+    }
   });
 
   // Sort: EV props first, then by edge magnitude
@@ -1817,12 +2166,14 @@ function renderProps(props) {
   const showKs = document.getElementById('propsShowKs')?.checked;
   const showHR = document.getElementById('propsShowHR')?.checked;
   const showTB = document.getElementById('propsShowTB')?.checked;
+  const showHits = document.getElementById('propsShowHits')?.checked;
 
   let filtered = props.filter(function (p) {
     if (evOnly && !p.isEV) return false;
     if (!showKs && p.type === 'pitcher_ks') return false;
     if (!showHR && p.type === 'batter_hr') return false;
     if (!showTB && p.type === 'batter_tb') return false;
+    if (!showHits && p.type === 'batter_hits') return false;
     return true;
   });
 
@@ -2069,7 +2420,7 @@ async function formulaRun(cfg, today, slateGames) {
     const factors = [];
     const compAbs = {
       'Pythagorean': Math.abs(comps.base || 0), 'Starter': Math.abs(comps.starter || 0),
-      'Batting': Math.abs(comps.batting || 0),
+      'Batting': Math.abs(comps.batting || 0), 'Matchup': Math.abs(comps.matchup || 0),
       'Bullpen': Math.abs(comps.bullpen || 0),
       'Park': Math.abs(comps.park || 0), 'Recency': Math.abs(comps.recency || 0),
     };
@@ -2204,13 +2555,16 @@ function renderGames(games, picks, cfg) {
 
     // Starter info
     function starterDisplay(starter, teamStats) {
-      if (!starter || !starter.name) return { name: '—', era: '—', k9: '—', ip: '—', conf: 'unknown', confColor: 'var(--text3)' };
+      if (!starter || !starter.name) return { name: '—', era: '—', xera: '—', k9: '—', ip: '—', conf: 'unknown', confColor: 'var(--text3)', source: '' };
       const confColor = { confirmed: 'var(--green)', Confirmed: 'var(--green)', expected: 'var(--amber)', projected: 'var(--amber)' }[starter.confidence] || 'var(--text3)';
       const ps = _espnPitcherStats[starter.name];
-      var era = ps && ps.era != null ? ps.era.toFixed(2) : (starter.era != null ? parseFloat(starter.era).toFixed(2) : (teamStats && teamStats.era != null ? parseFloat(teamStats.era).toFixed(2) + '*' : '?'));
-      var k9 = ps && ps.k9 ? ps.k9.toFixed(1) : (teamStats && teamStats.k9 ? parseFloat(teamStats.k9).toFixed(1) + '*' : '?');
+      const savant = findSavantPitcher(starter.name);
+      var era = savant && savant.era != null ? parseFloat(savant.era).toFixed(2) : (ps && ps.era != null ? ps.era.toFixed(2) : (starter.era != null ? parseFloat(starter.era).toFixed(2) : '?'));
+      var xera = savant && savant.xera != null ? parseFloat(savant.xera).toFixed(2) : '—';
+      var k9 = ps && ps.k9 ? ps.k9.toFixed(1) : '?';
       var ip = ps && ps.ip ? ps.ip.toFixed(0) : '?';
-      return { name: starter.name, era: era, k9: k9, ip: ip, conf: starter.confidence || '?', confColor: confColor };
+      var source = savant ? 'savant' : (ps ? 'espn' : 'default');
+      return { name: starter.name, era: era, xera: xera, k9: k9, ip: ip, conf: starter.confidence || '?', confColor: confColor, source: source };
     }
     const awayS = starterDisplay(g.away_starter, g.stats);
     const homeS = starterDisplay(g.home_starter, g.stats);
@@ -2219,8 +2573,14 @@ function renderGames(games, picks, cfg) {
       ? '<span class="tag ' + (g.ml_lean === 'HOME' ? 'tag-c' : 'tag-h') + '" style="font-size:9px">ML: ' + g.ml_lean + ' ' + (g.ml_confidence || '') + '</span>' : '';
     const totalsBadge = g.totals_lean && g.totals_lean !== 'PASS'
       ? '<span class="tag ' + (g.totals_lean === 'OVER' ? 'tag-h' : 'tag-c') + '" style="font-size:9px">' + g.totals_lean + ' ' + g.projected_total + ' (mkt ' + (g.market_total || '?') + ')</span>' : '';
-    const parkBadge = g.park_factor && Math.abs(g.park_factor - 1.0) > 0.03
-      ? '<span class="tag ' + (g.park_factor > 1.0 ? 'tag-h' : 'tag-c') + '" style="font-size:9px">🏟 ' + g.park_factor.toFixed(2) + '</span>' : '';
+        const parkBadge = g.park_factor && Math.abs(g.park_factor - 1.0) > 0.03
+      ? '<span class="tag ' + (g.park_factor > 1.0 ? 'tag-h' : 'tag-c') + '" style="font-size:9px">Park ' + g.park_factor.toFixed(2) + '</span>' : '';
+    const weatherBadge = g.bppWeather
+      ? '<span class="tag ' + (g.bppWeather.runs > 0.5 ? 'tag-h' : g.bppWeather.runs < -0.5 ? 'tag-c' : '') + '" style="font-size:9px">Weather: ' + (g.bppWeather.runs > 0 ? '+' : '') + g.bppWeather.runs.toFixed(1) + 'r · ' + (g.bppWeather.temp || '?') + ' · ' + (g.bppWeather.humidity || '?') + '</span>' : '';
+    const matchupBadge = g.matchupAdj && Math.abs(g.matchupAdj) > 0.05
+      ? '<span class="tag ' + (g.matchupAdj > 0 ? 'tag-h' : 'tag-c') + '" style="font-size:9px">Matchup ' + (g.matchupAdj > 0 ? '+' : '') + g.matchupAdj.toFixed(2) + 'r</span>' : '';
+    const awayLuckBadge = g.awayLuckFlag ? '<span class="tag tag-' + (g.awayLuckFlag === 'LUCKY' ? 'h' : 'c') + '" style="font-size:9px">' + (g.away_starter ? g.away_starter.name : 'SP') + ': ' + g.awayLuckFlag + '</span>' : '';
+    const homeLuckBadge = g.homeLuckFlag ? '<span class="tag tag-' + (g.homeLuckFlag === 'LUCKY' ? 'h' : 'c') + '" style="font-size:9px">' + (g.home_starter ? g.home_starter.name : 'SP') + ': ' + g.homeLuckFlag + '</span>' : '';
 
     // Build narrative
     let narrative = '';
@@ -2265,12 +2625,12 @@ function renderGames(games, picks, cfg) {
       '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;margin-bottom:12px;background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;align-items:center">' +
       '<div>' +
       '<div style="font-size:12px;font-weight:600;color:' + awayS.confColor + '">' + awayS.name + '</div>' +
-      '<div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:2px">ERA ' + awayS.era + ' · K/9 ' + awayS.k9 + ' · <span style="color:' + awayS.confColor + '">' + awayS.conf + '</span></div>' +
+      '<div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:2px">ERA ' + awayS.era + (awayS.xera !== '—' ? ' · xERA ' + awayS.xera : '') + ' · K/9 ' + awayS.k9 + ' · <span style="color:' + awayS.confColor + '">' + awayS.conf + '</span></div>' +
       '</div>' +
       '<div style="font-size:10px;font-family:var(--mono);color:var(--text3);padding:0 16px;text-align:center">vs</div>' +
       '<div style="text-align:right">' +
       '<div style="font-size:12px;font-weight:600;color:' + homeS.confColor + '">' + homeS.name + '</div>' +
-      '<div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:2px"><span style="color:' + homeS.confColor + '">' + homeS.conf + '</span> · K/9 ' + homeS.k9 + ' · ERA ' + homeS.era + '</div>' +
+      '<div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:2px"><span style="color:' + homeS.confColor + '">' + homeS.conf + '</span> · K/9 ' + homeS.k9 + (homeS.xera !== '—' ? ' · xERA ' + homeS.xera : '') + ' · ERA ' + homeS.era + '</div>' +
       '</div></div>' +
 
       // Stat comparison
@@ -2298,7 +2658,7 @@ function renderGames(games, picks, cfg) {
       '</div>' +
 
       // Tags
-      '<div class="tags" style="margin-bottom:10px">' + mlBadge + totalsBadge + parkBadge + '</div>' +
+      '<div class="tags" style="margin-bottom:10px">' + mlBadge + totalsBadge + parkBadge + weatherBadge + matchupBadge + awayLuckBadge + homeLuckBadge + '</div>' +
 
       // Analysis
       (narrative ? '<div class="analysis-block">' + narrative.trim() + '</div>' : '') +
@@ -2438,7 +2798,21 @@ async function applyESPNResults(dateStr, espnResults) {
       const mktMatch = (g.market_spread || '').match(/([A-Z]+)\s+([-+]?\d+\.?\d*)/);
       const mktLine = mktMatch ? parseFloat(mktMatch[2]) : null;
       const mktFavAbbr = mktMatch ? mktMatch[1].toUpperCase() : null;
-      const favIsHome = mktFavAbbr ? g.home.toUpperCase().split(' ').some(function (w) { return w.slice(0, 3) === mktFavAbbr.slice(0, 3); }) : match.homeScore > match.awayScore;
+      
+      // Determine if market fav is the home team using actual abbreviations
+      // g.code format is "AWY@HOM" (e.g., "ARI@NYM")
+      const codeParts = (g.code || '').split('@');
+      var gameAwayAbbr = (codeParts[0] || '').toUpperCase();
+      var gameHomeAbbr = (codeParts[1] || '').toUpperCase();
+      // Fallback for older archives without code field
+      if (!gameHomeAbbr) {
+        var _nta = {'New York Yankees':'NYY','New York Mets':'NYM','Los Angeles Dodgers':'LAD','Los Angeles Angels':'LAA','Chicago Cubs':'CHC','Chicago White Sox':'CHW','St. Louis Cardinals':'STL','San Francisco Giants':'SF','San Diego Padres':'SD','Tampa Bay Rays':'TB','Kansas City Royals':'KC','Washington Nationals':'WSH','Atlanta Braves':'ATL','Arizona Diamondbacks':'ARI','Baltimore Orioles':'BAL','Boston Red Sox':'BOS','Cincinnati Reds':'CIN','Cleveland Guardians':'CLE','Colorado Rockies':'COL','Detroit Tigers':'DET','Houston Astros':'HOU','Miami Marlins':'MIA','Milwaukee Brewers':'MIL','Minnesota Twins':'MIN','Oakland Athletics':'OAK','Athletics':'OAK','Philadelphia Phillies':'PHI','Pittsburgh Pirates':'PIT','Seattle Mariners':'SEA','Texas Rangers':'TEX','Toronto Blue Jays':'TOR'};
+        gameHomeAbbr = _nta[g.home] || '';
+        gameAwayAbbr = _nta[g.away] || '';
+        if (gameHomeAbbr && gameAwayAbbr) g.code = gameAwayAbbr + '@' + gameHomeAbbr;
+      }
+      const favIsHome = mktFavAbbr ? (mktFavAbbr === gameHomeAbbr) : (match.homeScore > match.awayScore);
+      
       const favScore = favIsHome ? match.homeScore : match.awayScore;
       const dogScore = favIsHome ? match.awayScore : match.homeScore;
       const actualMargin = favScore - dogScore;
@@ -2496,7 +2870,7 @@ async function runPostmortem() {
       return { date: g.date, matchup: g.away + ' @ ' + g.home, model_error: modelError, verdict: g.verdict, ats_result: g.ats_result, components: g.components || {} };
     }).filter(function (e) { return e.model_error !== null; });
 
-    const compKeys = ['base', 'starter', 'batting', 'bullpen', 'park', 'recency', 'context', 'babip_regression', 'bullpen_fatigue'];
+    const compKeys = ['base', 'starter', 'batting', 'matchup', 'bullpen', 'park', 'recency', 'context', 'babip_regression', 'bullpen_fatigue'];
     const compStats = {};
     compKeys.forEach(function (k) {
       const vals = errors.filter(function (e) { return e.components[k] != null; });
@@ -2672,6 +3046,92 @@ async function applyPostmortemWeights() {
 // UTILITIES
 // ═══════════════════════════════════════════════════════════════════
 
+
+// Recompute ATS results for all archived games using corrected logic
+async function recomputeAllATS() {
+  if (!confirm('This will recompute W/L/ATS results for ALL archived games using corrected abbreviation matching. Continue?')) return;
+  
+  var nameToAbbr = {
+    'New York Yankees':'NYY','New York Mets':'NYM','Los Angeles Dodgers':'LAD',
+    'Los Angeles Angels':'LAA','Chicago Cubs':'CHC','Chicago White Sox':'CHW',
+    'St. Louis Cardinals':'STL','San Francisco Giants':'SF','San Diego Padres':'SD',
+    'Tampa Bay Rays':'TB','Kansas City Royals':'KC','Washington Nationals':'WSH',
+    'Atlanta Braves':'ATL','Arizona Diamondbacks':'ARI','Baltimore Orioles':'BAL',
+    'Boston Red Sox':'BOS','Cincinnati Reds':'CIN','Cleveland Guardians':'CLE',
+    'Colorado Rockies':'COL','Detroit Tigers':'DET','Houston Astros':'HOU',
+    'Miami Marlins':'MIA','Milwaukee Brewers':'MIL','Minnesota Twins':'MIN',
+    'Oakland Athletics':'OAK','Athletics':'OAK',
+    'Philadelphia Phillies':'PHI','Pittsburgh Pirates':'PIT','Seattle Mariners':'SEA',
+    'Texas Rangers':'TEX','Toronto Blue Jays':'TOR',
+  };
+  
+  var totalFixed = 0, totalGames = 0;
+  var allKeys = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k.startsWith('mlb_archive_')) allKeys.push(k);
+  }
+  
+  for (var ki = 0; ki < allKeys.length; ki++) {
+    var archiveKey = allKeys[ki];
+    try {
+      var data = JSON.parse(localStorage.getItem(archiveKey));
+      if (!data || !data.games) continue;
+      var changed = false;
+      
+      data.games.forEach(function(g) {
+        if (g.actual_away_score == null && g.actual_away_score !== 0) return;
+        totalGames++;
+        
+        // Ensure code field exists
+        if (!g.code) {
+          var awayAbbr = nameToAbbr[g.away] || '';
+          var homeAbbr = nameToAbbr[g.home] || '';
+          if (awayAbbr && homeAbbr) {
+            g.code = awayAbbr + '@' + homeAbbr;
+            changed = true;
+          }
+        }
+        
+        var mktMatch = (g.market_spread || '').match(/([A-Z]+)\s+([-+]?\d+\.?\d*)/);
+        if (!mktMatch) return;
+        var mktFavAbbr = mktMatch[1].toUpperCase();
+        var mktLine = parseFloat(mktMatch[2]);
+        
+        var codeParts = (g.code || '').split('@');
+        var homeAbbr2 = (codeParts[1] || '').toUpperCase();
+        var favIsHome = (mktFavAbbr === homeAbbr2);
+        
+        var favScore = favIsHome ? g.actual_home_score : g.actual_away_score;
+        var dogScore = favIsHome ? g.actual_away_score : g.actual_home_score;
+        var actualMargin = favScore - dogScore;
+        var covered = actualMargin + mktLine;
+        
+        var newATS = null;
+        if (Math.abs(covered) < 0.1) newATS = 'P';
+        else if (g.verdict === 'EV_FAV') newATS = covered > 0 ? 'W' : 'L';
+        else if (g.verdict === 'EV_DOG') newATS = covered < 0 ? 'W' : 'L';
+        else newATS = covered > 0 ? 'FAV_CVR' : 'DOG_CVR';
+        
+        if (newATS !== g.ats_result) {
+          g.ats_result = newATS;
+          g.actual_margin = actualMargin;
+          changed = true;
+          totalFixed++;
+        }
+      });
+      
+      if (changed) {
+        localStorage.setItem(archiveKey, JSON.stringify(data));
+      }
+    } catch (e) {}
+  }
+  
+  updateSeasonRecord();
+  addLog('ATS recomputed: ' + totalFixed + ' corrections across ' + totalGames + ' games in ' + allKeys.length + ' archives', totalFixed > 0 ? 'ok' : 'info');
+  alert('Recomputed ' + totalGames + ' games. ' + totalFixed + ' ATS results corrected.');
+}
+
 async function clearHistory() {
   if (!confirm('Clear all archives and pick history?')) return;
   try {
@@ -2749,7 +3209,7 @@ async function renderHistoryFromStorage() { await refreshArchivePicker(); update
 
 (async () => {
   try {
-    addLog('MLB Line Scout v2 initialized. Fetching data...', 'ok');
+    addLog('MLB Line Scout v3 initialized. Fetching data...', 'ok');
     const dateInput = document.getElementById('slateDate');
     if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
     const cfg = await loadConfig();
