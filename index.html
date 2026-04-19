@@ -1559,6 +1559,29 @@ function computeLineupXwoba(teamAbbr) {
 
 async function checkStatsCache() {
   const dateKey = new Date().toDateString();
+  
+  // Proactive cleanup: keep only the most recent key for each cache prefix
+  // Prevents localStorage from filling up over days of syncing
+  try {
+    var cachePrefixes = ['mlb_br_stats_','mlb_br_splits_lhp_','mlb_br_splits_rhp_','mlb_br_player_batting_','mlb_br_bat_stats_','mlb_br_pitch_stats_','mlb_bpp_factors_','mlb_savant_pitchers_','mlb_savant_batters_','mlb_rw_lineups_'];
+    var totalCleaned = 0;
+    cachePrefixes.forEach(function(prefix) {
+      var keysForPrefix = [];
+      for (var ci = 0; ci < localStorage.length; ci++) {
+        var ck = localStorage.key(ci);
+        if (ck && ck.startsWith(prefix)) keysForPrefix.push(ck);
+      }
+      if (keysForPrefix.length > 1) {
+        keysForPrefix.sort();
+        for (var cj = 0; cj < keysForPrefix.length - 1; cj++) {
+          localStorage.removeItem(keysForPrefix[cj]);
+          totalCleaned++;
+        }
+      }
+    });
+    if (totalCleaned > 0) addLog('Cleaned ' + totalCleaned + ' old cache entries on startup', 'info');
+  } catch (e) {}
+
   if (!_brAdvStats || !Object.keys(_brAdvStats).length) {
     try {
       const r = await store.get('br_stats_' + dateKey);
@@ -2678,6 +2701,7 @@ async function archiveDailyRun(result, cfg, today) {
     games: (result.games || []).map(function (g) {
       return {
         id: g.id, away: g.away, home: g.home, event: g.event,
+        code: g.code || '',
         market_spread: g.market_spread, model_spread: g.model_spread,
         edge_pts: g.edge_pts, verdict: g.verdict, play: g.play,
         components: g.components || {},
@@ -2690,7 +2714,35 @@ async function archiveDailyRun(result, cfg, today) {
     await store.set(key, JSON.stringify(payload));
     addLog('Archive saved: ' + key, 'ok');
     refreshArchivePicker();
-  } catch (e) { addLog('Archive error: ' + e.message, 'warn'); }
+  } catch (e) {
+    // Likely localStorage quota exceeded — try cleaning old caches
+    addLog('Archive save failed: ' + e.message + ' — cleaning old caches...', 'warn');
+    try {
+      var cleaned = 0;
+      var prefixes = ['br_stats_', 'br_splits_lhp_', 'br_splits_rhp_', 'bpp_factors_', 'br_player_batting_', 'savant_pitchers_', 'savant_batters_', 'rw_lineups_'];
+      prefixes.forEach(function(prefix) {
+        var keysForPrefix = [];
+        for (var i = 0; i < localStorage.length; i++) {
+          var lk = localStorage.key(i);
+          if (lk && lk.startsWith('mlb_' + prefix)) keysForPrefix.push(lk);
+        }
+        // Keep only the most recent key for each prefix, remove older ones
+        if (keysForPrefix.length > 1) {
+          keysForPrefix.sort();
+          for (var j = 0; j < keysForPrefix.length - 1; j++) {
+            localStorage.removeItem(keysForPrefix[j]);
+            cleaned++;
+          }
+        }
+      });
+      addLog('Cleaned ' + cleaned + ' old cache entries. Retrying save...', 'info');
+      await store.set(key, JSON.stringify(payload));
+      addLog('Archive saved after cleanup: ' + key, 'ok');
+      refreshArchivePicker();
+    } catch (e2) {
+      addLog('Archive save STILL failed after cleanup: ' + e2.message, 'err');
+    }
+  }
 }
 
 async function refreshArchivePicker() {
